@@ -15,7 +15,6 @@
       --success: #06d6a0; --danger: #ef476f; --warning: #ffd166;
       --bg: #fdfeff; --card-bg: #ffffff; --text-main: #1e293b;
       --text-muted: #64748b; --radius: 18px;
-      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
@@ -30,7 +29,7 @@
     .header-app h2 { font-weight: 800; font-size: 24px; margin: 0; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
     .header-app p { color: var(--text-muted); font-size: 13px; margin-top: 5px; }
 
-    .warning-item { display: flex; gap: 12px; padding: 12px; background: #fff; border-radius: 15px; margin-bottom: 12px; border: 1px solid #f1f5f9; box-shadow: var(--shadow); align-items: center; position: relative; }
+    .warning-item { display: flex; gap: 12px; padding: 12px; background: #fff; border-radius: 15px; margin-bottom: 12px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px rgba(0,0,0,0.02); align-items: center; position: relative; }
     .warning-img { width: 65px; height: 65px; border-radius: 12px; object-fit: cover; background: #f1f5f9; border: 1px solid #e2e8f0; cursor: pointer; }
     .warning-info { flex: 1; }
     .warning-info h4 { margin: 0; font-size: 13px; color: var(--text-main); line-height: 1.2; width: 85%; }
@@ -44,7 +43,7 @@
 
     #dashboard { background: linear-gradient(135deg, #ff9f1c, #f9844a); color: white; padding: 16px; border-radius: var(--radius); margin-bottom: 20px; display: none; text-align: center; font-weight: 700; box-shadow: 0 10px 20px rgba(255, 159, 28, 0.2); }
 
-    .card { background: var(--card-bg); padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; border: 1px solid #f1f5f9; width: 100%; }
+    .card { background: var(--card-bg); padding: 20px; border-radius: var(--radius); box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 16px; border: 1px solid #f1f5f9; width: 100%; }
     .card-title { font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
     .card-title::after { content: ""; height: 1px; flex: 1; background: #f1f5f9; }
 
@@ -53,13 +52,7 @@
     input:focus, select:focus { outline: none; border-color: var(--primary); background: #fff; }
 
     .dept-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
-    
-    /* Tombol Dept Diperbarui agar Support Tap di Mobile */
-    .btn-dept { 
-      padding: 12px 2px; border: 1.5px solid #f1f5f9; background: #f8fafc; 
-      border-radius: 12px; cursor: pointer; text-align: center; font-size: 10px; 
-      font-weight: 700; color: var(--text-muted); font-family: inherit; outline: none; 
-    }
+    .btn-dept { padding: 12px 2px; border: 1.5px solid #f1f5f9; background: #f8fafc; border-radius: 12px; cursor: pointer; text-align: center; font-size: 10px; font-weight: 700; color: var(--text-muted); font-family: inherit; outline: none; }
     .btn-dept.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(67, 97, 238, 0.2); }
     
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -226,73 +219,76 @@
 </div>
 
 <script>
-  // ==========================================
-  // PASTIKAN MENGGANTI URL & KEY INI DENGAN MILIK ANDA
-  // ==========================================
-  const SUPABASE_URL = 'https://tplmwztdiccknphhxbqo.supabase.co/rest/v1/'; // (GANTI INI)
-  const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf'; // (GANTI INI)
+  // URL URL SUDAH DIPERBAIKI (TIDAK ADA /rest/v1/)
+  const SUPABASE_URL = 'https://tplmwztdiccknphhxbqo.supabase.co'; 
+  const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';       
 
   let supabase = null;
-  
-  // DATA MASTER DITULIS LOKAL AGAR TIDAK BENTROK SAAT LOADING PERTAMA
-  const masterData = [
-    { dept: "HBC", kategori: "SKINCARE", limit: 90 },
-    { dept: "HBC", kategori: "BODYCARE", limit: 90 },
-    { dept: "HBC", kategori: "COSMETIC", limit: 90 },
-    { dept: "GROCERY", kategori: "FOOD", limit: 60 },
-    { dept: "GROCERY", kategori: "NONFOOD", limit: 60 },
-    { dept: "DND", kategori: "BEVERAGE", limit: 60 },
-    { dept: "DND", kategori: "DAIRY", limit: 30 },
-    { dept: "GMS", kategori: "KITCHEN", limit: 120 },
-    { dept: "PRODUCE", kategori: "FRUIT", limit: 3 },
-    { dept: "PRODUCE", kategori: "VEGETABLE", limit: 3 },
-    { dept: "NONFOOD", kategori: "TOYS", limit: 120 },
-    { dept: "NONFOOD", kategori: "STATIONERY", limit: 120 },
-    { dept: "DELSUSBAK", kategori: "DELICA", limit: 1 },
-    { dept: "DELSUSBAK", kategori: "SUSHI", limit: 1 },
-    { dept: "DELSUSBAK", kategori: "BAKERY", limit: 3 }
-  ];
-
+  let masterData = [];
   let selectedDept = "";
   let base64Image = "";
   let html5Qr = null;
   let isListVisible = false;
 
-  // Inisialisasi secara aman
   try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   } catch(e) {
     console.error("Gagal inisialisasi Supabase:", e);
   }
 
-  window.onload = () => {
-    refreshWarningCount(""); 
+  // --- KETIKA APLIKASI PERTAMA KALI DIBUKA ---
+  window.onload = async () => {
+    try {
+      await loadMasterData();
+    } catch(e) {
+      console.error(e);
+    }
   };
 
-  // 1. FUNGSI KLIK DEPARTEMEN 
+  // 1. MENGAMBIL DATA MASTER DARI TABEL SUPABASE
+  async function loadMasterData() {
+    if (!supabase) return;
+
+    document.getElementById("loader").style.display = 'flex';
+    document.getElementById("loader-text").innerText = "Mengambil Data Master...";
+
+    const { data, error } = await supabase.from('data_master').select('*');
+    
+    document.getElementById("loader").style.display = 'none';
+
+    if (error) {
+      alert("Gagal memuat Data Master. Pastikan RLS sudah dimatikan!");
+    } else if (data.length === 0) {
+      alert("⚠️ Tabel data_master terlihat kosong. Silakan jalankan perintah SQL untuk mematikan RLS seperti panduan.");
+    } else {
+      masterData = data;
+      refreshWarningCount(""); 
+    }
+  }
+
+  // 2. FUNGSI KLIK DEPARTEMEN
   function selectDept(dept, el) {
     selectedDept = dept;
     
-    // Ganti warna tombol aktif secara Instan (Anti-Lag / INP Issue fix)
     document.querySelectorAll('.btn-dept').forEach(b => b.classList.remove('active'));
     if(el) el.classList.add('active');
     
-    // Looping data kategori instan
     const katSelect = document.getElementById("kategori");
     katSelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
     
-    masterData.filter(x => x.dept === dept).forEach(x => {
-      katSelect.innerHTML += `<option value="${x.kategori}">${x.kategori}</option>`;
-    });
+    if (masterData.length > 0) {
+      masterData.filter(x => x.dept === dept).forEach(x => {
+        katSelect.innerHTML += `<option value="${x.kategori}">${x.kategori}</option>`;
+      });
+    }
     katSelect.disabled = false;
 
-    // Memisahkan query database dari klik UI agar UI tidak freeze
     setTimeout(() => {
       refreshWarningCount(dept);
     }, 10);
   }
 
-  // 2. FUNGSI MENGHITUNG TOTAL "WARNING"
+  // 3. FUNGSI MENGHITUNG TOTAL WARNING
   async function refreshWarningCount(dept) {
     if(!supabase) return;
     
@@ -308,7 +304,7 @@
     }
   }
 
-  // 3. FUNGSI MENAMPILKAN LIST DI BAWAH (TOGGLE)
+  // 4. FUNGSI MENAMPILKAN LIST (TOGGLE)
   function toggleWarningList() {
     const wrapper = document.getElementById("warningListWrapper");
     const btn = document.getElementById("btnToggle");
@@ -325,7 +321,7 @@
     }
   }
 
-  // 4. FUNGSI MENGAMBIL DATA UNTUK LIST
+  // 5. FUNGSI MENGAMBIL DATA UNTUK LIST
   async function loadWarningData() {
     const container = document.getElementById("listContent");
     const filterDept = document.getElementById("filterWarningDept").value;
@@ -340,7 +336,7 @@
     const { data, error } = await query;
 
     if (error) {
-      container.innerHTML = `<div style="text-align:center; padding:30px; color:red; font-size:13px;">Gagal menarik data.</div>`;
+      container.innerHTML = `<div style="text-align:center; padding:30px; color:red; font-size:13px;">Gagal menarik data. Cek koneksi Supabase.</div>`;
       return;
     }
 
@@ -365,14 +361,14 @@
             <p>📍 <b>${item.gondola}-${item.selving}</b> | Exp: <span style="color:var(--danger); font-weight:800;">${item.expired_date}</span></p>
             <p>SKU: ${item.barcode} | Qty: ${item.qty}</p>
           </div>
-          <button class="btn-delete-item" onclick="confirmDelete('${item.barcode}', '${item.deskripsi_barang}')">🗑️</button>
+          <button type="button" class="btn-delete-item" onclick="confirmDelete('${item.barcode}', '${item.deskripsi_barang}')">🗑️</button>
         </div>
       `;
     });
     container.innerHTML = html;
   }
 
-  // 5. FUNGSI SIMPAN
+  // 6. FUNGSI SIMPAN
   async function saveData() {
     const katValue = document.getElementById("kategori").value;
     const expValue = document.getElementById("expiredDate").value;
@@ -411,7 +407,7 @@
     document.getElementById("loader").style.display = 'none';
     
     if (error) {
-      alert("Gagal menyimpan: " + error.message);
+      alert("Gagal menyimpan: Pastikan gembok RLS sudah dimatikan. Error: " + error.message);
     } else {
       if(remarks === "WARNING") {
         alert("⚠️ Data disimpan dan berstatus WARNING!");
@@ -427,7 +423,7 @@
     }
   }
 
-  // 6. FUNGSI HAPUS BARANG
+  // 7. FUNGSI HAPUS BARANG
   async function confirmDelete(barcode, desc) {
     if (confirm(`Hapus data "${desc}" dari database?`)) {
       document.getElementById("loader").style.display = 'flex';
@@ -497,7 +493,7 @@
     });
   });
 
-  // --- KODE PREVIEW FOTO BARANG (Diperbarui Khusus Mobile) ---
+  // --- KODE PREVIEW FOTO BARANG ---
   function previewImage(inputEl) {
     const file = inputEl.files[0];
     if (!file) return;

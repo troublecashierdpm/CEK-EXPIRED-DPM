@@ -57,7 +57,7 @@
     .btn-dept.active { background: var(--primary); color: white; border-color: var(--primary); }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-    .main-btn { width: 100%; padding: 14px; border-radius: 14px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .main-btn { width: 100%; padding: 14px; border-radius: 14px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-save { background: linear-gradient(135deg, #059669, var(--success)); color: white; font-size: 16px; margin-top: 10px;}
     #loader { display: none; position: fixed; inset: 0; background: rgba(255, 255, 255, 0.9); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; }
     .spinner { width: 40px; height: 40px; border: 4px solid var(--primary-soft); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
@@ -98,13 +98,23 @@
       <div><label>Gondola</label><input type="text" id="gondola" placeholder="A-01"></div>
       <div><label>Selving</label><input type="text" id="selving" placeholder="01"></div>
     </div>
+    
     <label>Barcode / SKU</label>
-    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+    <div style="display: flex; gap: 8px; margin-bottom: 5px;">
       <input type="text" id="barcode" placeholder="Scan/Ketik">
-      <button type="button" class="main-btn" style="width: 60px; padding: 0; background: #e2e8f0; color:black;" onclick="document.getElementById('qr-input-file').click()">📂</button>
+      <button type="button" class="main-btn" style="width: 60px; padding: 0; background: var(--primary-soft); color:var(--primary);" onclick="startScanning()" title="Scan Langsung">📷</button>
+      <button type="button" class="main-btn" style="width: 60px; padding: 0; background: #e2e8f0; color:black;" onclick="document.getElementById('qr-input-file').click()" title="Scan dari Foto">📂</button>
     </div>
+    <div style="background: #fff9db; border-left: 4px solid #fcc419; padding: 8px 12px; border-radius: 8px; margin-bottom: 15px;">
+      <p style="margin: 0; font-size: 10px; color: #856404; line-height: 1.4;">
+        <strong>💡 Tips Scan:</strong> Gunakan tombol 📷 untuk scan langsung. Jika kamera bermasalah, gunakan 📂 untuk scan dari foto.
+      </p>
+    </div>
+
     <input type="file" id="qr-input-file" accept="image/*" style="display:none">
-    <div id="reader"></div>
+    
+    <div id="reader" style="width: 100%; border-radius: 12px; overflow: hidden; display: none; margin-bottom: 15px; border: 3px solid var(--primary);"></div>
+    <button id="btnStop" type="button" class="main-btn" style="display:none; background:var(--danger); color:white; margin-bottom:10px;" onclick="stopScanning()">❌ Hentikan Scanner</button>
     
     <label>Deskripsi Nama Barang</label>
     <input type="text" id="deskripsi" placeholder="Masukkan nama produk">
@@ -147,8 +157,7 @@
   const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // Data Master Statis (Pengganti sheet DATA MASTER) 
-  // Anda bisa tambah/kurangi departemen disini
+  // Data Master Statis
   const masterData = [
     { dept: "GROCERY", kategori: "FOOD" }, { dept: "GROCERY", kategori: "NONFOOD" },
     { dept: "DND", kategori: "BEVERAGE" }, { dept: "DND", kategori: "DAIRY" },
@@ -160,6 +169,7 @@
   let selectedDept = "";
   let base64Image = "";
   let cachedData = [];
+  let html5Qr = null; // Variabel untuk kamera live
 
   function getIcon(dept) {
     const i = { "DELICA": "🥗", "SUSHI": "🍣", "PRODUCE": "🥬", "BAKERY": "🍞", "GROCERY": "🛒", "DND": "🥛", "GMS": "🍽️", "HBC": "🧴" };
@@ -167,7 +177,6 @@
   }
 
   window.onload = () => {
-    // Generate Tombol Departemen
     const uniqueDepts = [...new Set(masterData.map(item => item.dept))];
     const container = document.getElementById("deptGroupContainer");
     uniqueDepts.forEach(dept => {
@@ -189,14 +198,12 @@
     kat.disabled = false;
   }
 
-  // MENGAMBIL DATA DARI SUPABASE
+  // --- LOGIKA SUPABASE ---
   async function fetchDashboardData() {
     const grid = document.getElementById("dashboardGrid");
     grid.innerHTML = '<div style="grid-column: span 3; text-align:center; padding:10px; font-size:12px;">Memuat data...</div>';
     
-    // Tarik semua baris data dari tabel data_expired
     const { data, error } = await supabase.from('data_expired').select('*');
-    
     if (error) { grid.innerHTML = 'Gagal memuat database.'; return; }
     
     cachedData = data;
@@ -247,24 +254,20 @@
     }
     document.getElementById("listModal").style.display = "flex";
   }
+  
   function closeListModal() { document.getElementById("listModal").style.display = "none"; }
 
-  // HAPUS DATA DI SUPABASE
   async function deleteItem(barcode, desc) {
     if (confirm(`Hapus data "${desc}"?`)) {
       document.getElementById("loader").style.display = 'flex';
       closeListModal();
-      
-      const { error } = await supabase.from('data_expired').delete()
-        .eq('barcode', barcode).eq('deskripsi', desc);
-        
+      const { error } = await supabase.from('data_expired').delete().eq('barcode', barcode).eq('deskripsi', desc);
       document.getElementById("loader").style.display = 'none';
       if (error) alert("Gagal menghapus.");
       else fetchDashboardData();
     }
   }
 
-  // SIMPAN DATA KE SUPABASE
   async function saveData() {
     const kat = document.getElementById("kategori").value;
     const exp = document.getElementById("expiredDate").value;
@@ -291,23 +294,51 @@
     else { alert("✅ Data tersimpan cepat!"); fetchDashboardData(); }
   }
 
-  // Image Processing & Scanner
-  function previewImage() {
-    const f = document.getElementById("fotoInput").files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = e => {
-      const img = new Image(); img.onload = () => {
-        const cvs = document.createElement('canvas'); let w = img.width, h = img.height;
-        if (w > 400) { h *= 400 / w; w = 400; } // Diperkecil ke 400px agar ringan simpan di Supabase Text
-        cvs.width = w; cvs.height = h; cvs.getContext('2d').drawImage(img, 0, 0, w, h);
-        base64Image = cvs.toDataURL('image/jpeg', 0.5);
-        document.getElementById("preview").src = base64Image;
-        document.getElementById("previewContainer").style.display = 'block';
-      }; img.src = e.target.result;
-    }; r.readAsDataURL(f);
+  // --- LOGIKA SCANNER & KAMERA ---
+  async function startScanning() {
+    const readerDiv = document.getElementById("reader");
+    const stopBtn = document.getElementById("btnStop");
+    
+    readerDiv.style.display = "block";
+    stopBtn.style.display = "flex";
+
+    if (!html5Qr) { html5Qr = new Html5Qrcode("reader"); }
+    const config = { 
+      fps: 15, 
+      qrbox: { width: 250, height: 180 },
+      aspectRatio: 1.0,
+      videoConstraints: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+    };
+
+    try {
+      if(html5Qr.isScanning) { await html5Qr.stop(); }
+      await html5Qr.start(
+        { facingMode: "environment" }, config, 
+        (decodedText) => {
+          document.getElementById("barcode").value = decodedText;
+          if (navigator.vibrate) navigator.vibrate(100);
+          stopScanning();
+        },
+        (errorMessage) => {}
+      );
+    } catch (err) {
+      alert("Gagal akses kamera langsung. Silakan gunakan tombol 📂 untuk ambil foto barcode.");
+      stopScanning();
+    }
   }
-  function removeImage() { base64Image = ""; document.getElementById("fotoInput").value = ""; document.getElementById("previewContainer").style.display = 'none'; }
-  
+
+  function stopScanning() {
+    if (html5Qr) {
+      html5Qr.stop().then(() => {
+        document.getElementById("reader").style.display = "none";
+        document.getElementById("btnStop").style.display = "none";
+      }).catch(err => {
+        document.getElementById("reader").style.display = "none";
+        document.getElementById("btnStop").style.display = "none";
+      });
+    }
+  }
+
   document.getElementById('qr-input-file').addEventListener('change', e => {
     if (e.target.files.length == 0) return;
     const scanner = new Html5Qrcode("reader");
@@ -316,6 +347,28 @@
       .then(t => { document.getElementById("barcode").value = t; document.getElementById("loader").style.display='none'; alert("Barcode terbaca!"); })
       .catch(err => { document.getElementById("loader").style.display='none'; alert("Gagal baca barcode."); });
   });
+
+  // --- LOGIKA PREVIEW GAMBAR BARANG ---
+  function previewImage() {
+    const f = document.getElementById("fotoInput").files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = e => {
+      const img = new Image(); img.onload = () => {
+        const cvs = document.createElement('canvas'); let w = img.width, h = img.height;
+        if (w > 400) { h *= 400 / w; w = 400; }
+        cvs.width = w; cvs.height = h; cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+        base64Image = cvs.toDataURL('image/jpeg', 0.5);
+        document.getElementById("preview").src = base64Image;
+        document.getElementById("previewContainer").style.display = 'block';
+      }; img.src = e.target.result;
+    }; r.readAsDataURL(f);
+  }
+  
+  function removeImage() { 
+    base64Image = ""; 
+    document.getElementById("fotoInput").value = ""; 
+    document.getElementById("previewContainer").style.display = 'none'; 
+  }
 </script>
 </body>
 </html>

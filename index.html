@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <style>
-    /* SEMUA CSS ASLI ANDA 100% DIPERTAHANKAN */
+    /* CSS ASLI ANDA SEPENUHNYA DIPERTAHANKAN */
     :root {
       --primary: #4361ee; --primary-soft: #eef2ff; --secondary: #3f37c9;
       --success: #06d6a0; --danger: #ef476f; --warning: #ffd166;
@@ -81,7 +81,7 @@
 <body>
 <div id="loader">
   <div class="spinner"></div>
-  <p style="margin-top:15px; font-weight:700; color:var(--primary)" id="loader-text">Memproses Data...</p>
+  <p style="margin-top:15px; font-weight:700; color:var(--primary)" id="loader-text">Memuat Data...</p>
 </div>
 
 <div class="container">
@@ -222,47 +222,52 @@
   // ==========================================
   // PASTIKAN MENGGANTI URL & KEY INI DENGAN MILIK ANDA
   // ==========================================
-  const SUPABASE_URL = 'https://tplmwztdiccknphhxbqo.supabase.co/rest/v1/'; // (Ganti Ini)
-  const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';       // (Ganti Ini)
+  const SUPABASE_URL = 'https://tplmwztdiccknphhxbqo.supabase.co/rest/v1/'; 
+  const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';       
 
   let supabase = null;
-  try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  } catch(e) { console.error("Koneksi Supabase Gagal:", e); }
-
-  // ----------------------------------------------------
-  // DATA MASTER PENGGANTI SPREADSHEET 
-  // (Pastikan sesuai dengan Sheet DATA MASTER Anda)
-  // ----------------------------------------------------
-  const masterData = [
-    { dept: "HBC", kategori: "SKINCARE" },
-    { dept: "HBC", kategori: "BODYCARE" },
-    { dept: "HBC", kategori: "COSMETIC" },
-    { dept: "GROCERY", kategori: "FOOD" },
-    { dept: "GROCERY", kategori: "NONFOOD" },
-    { dept: "DND", kategori: "BEVERAGE" },
-    { dept: "DND", kategori: "DAIRY" },
-    { dept: "GMS", kategori: "KITCHEN" },
-    { dept: "PRODUCE", kategori: "FRUIT" },
-    { dept: "PRODUCE", kategori: "VEGETABLE" },
-    { dept: "NONFOOD", kategori: "TOYS" },
-    { dept: "NONFOOD", kategori: "STATIONERY" },
-    { dept: "DELSUSBAK", kategori: "DELICA" },
-    { dept: "DELSUSBAK", kategori: "SUSHI" },
-    { dept: "DELSUSBAK", kategori: "BAKERY" }
-  ];
-
+  let masterData = [];
   let selectedDept = "";
   let base64Image = "";
   let html5Qr = null;
   let isListVisible = false;
 
-  window.onload = () => {
-    // Jalankan fungsi count agar dashboard otomatis menghitung total seluruh warning saat pertama dibuka
-    refreshWarningCount("");
+  // Inisialisasi secara aman untuk menghindari Crash HTML
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  } catch(e) {
+    console.error("Gagal inisialisasi Supabase:", e);
+  }
+
+  // --- KETIKA APLIKASI PERTAMA KALI DIBUKA ---
+  window.onload = async () => {
+    try {
+      await loadMasterData();
+    } catch(e) {
+      console.error(e);
+    }
   };
 
-  // 1. FUNGSI KLIK DEPARTEMEN & KATEGORI
+  // 1. MENGAMBIL DATA MASTER DARI TABEL SUPABASE
+  async function loadMasterData() {
+    if (!supabase) return;
+
+    document.getElementById("loader").style.display = 'flex';
+    document.getElementById("loader-text").innerText = "Menghubungkan ke Database...";
+
+    const { data, error } = await supabase.from('data_master').select('*');
+    
+    document.getElementById("loader").style.display = 'none';
+
+    if (error) {
+      alert("Gagal memuat Data Master. Pastikan URL & Key Supabase benar dan tabel 'data_master' sudah dibuat.");
+    } else {
+      masterData = data || [];
+      refreshWarningCount(""); // Hitung seluruh peringatan di awal
+    }
+  }
+
+  // 2. FUNGSI KLIK DEPARTEMEN & MENGISI KATEGORI
   function selectDept(dept, el) {
     selectedDept = dept;
     
@@ -273,24 +278,27 @@
     // Update dashboard warning count khusus departemen ini
     refreshWarningCount(dept);
     
-    // Looping data kategori ke dropdown
+    // Looping data kategori ke dropdown (Berdasarkan Data Master)
     const katSelect = document.getElementById("kategori");
     katSelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
-    masterData.filter(x => x.dept === dept).forEach(x => {
-      katSelect.innerHTML += `<option value="${x.kategori}">${x.kategori}</option>`;
-    });
+    
+    if (masterData.length > 0) {
+      masterData.filter(x => x.dept === dept).forEach(x => {
+        katSelect.innerHTML += `<option value="${x.kategori}">${x.kategori}</option>`;
+      });
+    }
     katSelect.disabled = false;
   }
 
-  // 2. FUNGSI MENGHITUNG TOTAL WARNING (PENGGANTI getWarningCount)
+  // 3. FUNGSI MENGHITUNG TOTAL "WARNING" (Dashboard Banner)
   async function refreshWarningCount(dept) {
     if(!supabase) return;
     
-    // Ambil hanya jumlah data yang remarks-nya 'WARNING'
-    let query = supabase.from('data_expired').select('*', { count: 'exact', head: true });
+    // Hanya hitung baris yang statusnya 'WARNING'
+    let query = supabase.from('data_expired').select('*', { count: 'exact', head: true }).eq('remarks', 'WARNING');
     
     if (dept && dept !== "") {
-      query = query.eq('dept', dept); // Filter jika tombol departemen diklik
+      query = query.eq('dept', dept);
     }
     
     const { count, error } = await query;
@@ -300,7 +308,7 @@
     }
   }
 
-  // 3. FUNGSI MENAMPILKAN LIST DI BAWAH (TOGGLE)
+  // 4. FUNGSI MENAMPILKAN LIST DI BAWAH (TOGGLE)
   function toggleWarningList() {
     const wrapper = document.getElementById("warningListWrapper");
     const btn = document.getElementById("btnToggle");
@@ -317,14 +325,16 @@
     }
   }
 
-  // 4. FUNGSI MENGAMBIL DATA UNTUK LIST WARNING
+  // 5. FUNGSI MENGAMBIL DATA UNTUK LIST (Hanya yang Warning)
   async function loadWarningData() {
     const container = document.getElementById("listContent");
     const filterDept = document.getElementById("filterWarningDept").value;
     
     container.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner" style="margin:0 auto;"></div><p style="font-size:12px; color:var(--primary); margin-top:10px;">Menarik data dari database...</p></div>';
 
-    let query = supabase.from('data_expired').select('*');
+    // Hanya ambil data yang statusnya 'WARNING'
+    let query = supabase.from('data_expired').select('*').eq('remarks', 'WARNING');
+    
     if (filterDept !== "ALL") {
       query = query.eq('dept', filterDept);
     }
@@ -343,7 +353,7 @@
 
     let html = '';
     data.forEach(item => {
-      // Prioritaskan gambar base64 baru, atau link foto lama jika ada
+      // Prioritaskan gambar base64 baru, atau link foto Google Drive lama
       const imgSource = item.foto_base64 ? item.foto_base64 : item.link_foto;
       const imgDisplay = imgSource 
         ? `<img src="${imgSource}" class="warning-img" onclick="openPreview('${imgSource}')" title="Klik untuk preview">`
@@ -365,7 +375,7 @@
     container.innerHTML = html;
   }
 
-  // 5. FUNGSI SIMPAN KE DATABASE
+  // 6. FUNGSI SIMPAN & HITUNG OTOMATIS LIMIT (PERSIS SEPERTI GAS)
   async function saveData() {
     const katValue = document.getElementById("kategori").value;
     const expValue = document.getElementById("expiredDate").value;
@@ -373,6 +383,18 @@
     
     document.getElementById("loader").style.display = 'flex';
     document.getElementById("loader-text").innerText = "Menyimpan Data...";
+
+    // Logika Penghitungan Limit Persis Seperti Google Apps Script
+    const masterObj = masterData.find(x => x.dept === selectedDept && x.kategori === katValue);
+    const limitHari = masterObj ? masterObj.limit : 0;
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const expDate = new Date(expValue);
+    expDate.setHours(0,0,0,0);
+    
+    const diffDays = Math.ceil((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    let remarks = diffDays <= limitHari ? "WARNING" : "AMAN"; // Hanya menjadi WARNING jika melewati Limit
 
     const payload = {
       dept: selectedDept,
@@ -384,7 +406,7 @@
       qty: parseInt(document.getElementById("qty").value) || 1,
       input_date: new Date().toISOString().split('T')[0],
       expired_date: expValue,
-      remarks: "WARNING",
+      remarks: remarks, // Tersimpan dinamis sesuai hitungan hari
       foto_base64: base64Image
     };
 
@@ -395,18 +417,22 @@
     if (error) {
       alert("Gagal menyimpan: " + error.message);
     } else {
-      alert("✅ Data berhasil disimpan!");
-      refreshWarningCount(selectedDept); // Perbarui jumlah hitungan
-      if(isListVisible) loadWarningData(); // Perbarui list jika sedang terbuka
+      if(remarks === "WARNING") {
+        alert("⚠️ Data disimpan dan berstatus WARNING!");
+      } else {
+        alert("✅ Data disimpan dan berstatus AMAN.");
+      }
+      refreshWarningCount(selectedDept); 
+      if(isListVisible) loadWarningData(); 
       
-      // Mengosongkan form (opsional, bisa dihapus jika tidak mau)
+      // Kosongkan beberapa kolom setelah sukses
       document.getElementById("barcode").value = "";
       document.getElementById("deskripsi").value = "";
       removeImage();
     }
   }
 
-  // 6. FUNGSI HAPUS BARANG
+  // 7. FUNGSI HAPUS BARANG
   async function confirmDelete(barcode, desc) {
     if (confirm(`Hapus data "${desc}" dari database?`)) {
       document.getElementById("loader").style.display = 'flex';

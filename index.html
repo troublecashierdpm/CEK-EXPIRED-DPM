@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Ceklist Expired DPM</title>
+  
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #4361ee; --primary-soft: #eef2ff; --secondary: #3f37c9;
+      --success: #06d6a0; --danger: #ef476f; --warning: #ffd166;
+      --bg: #f8fafc; --card-bg: #ffffff; --text-main: #1e293b;
+      --text-muted: #64748b; --radius: 18px;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 12px; min-height: 100vh; overflow-x: hidden; }
+    .container { width: 100%; max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
+    
+    .header-app { text-align: center; margin-bottom: 20px; padding-top: 10px; }
+    .header-app h2 { font-weight: 800; font-size: 24px; margin: 0; color: var(--primary); }
+    .header-app p { color: var(--text-muted); font-size: 13px; margin-top: 5px; }
+
+    /* Dashboard UI */
+    .dashboard-header-title { font-size: 14px; font-weight: 800; color: #64748b; margin-bottom: 15px; display: flex; align-items: center; }
+    .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
+    .dept-card { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 15px 5px; text-align: center; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    .dept-card .count { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+    .dept-card .count.danger { color: #e63946; }
+    .dept-card .count.safe { color: #1d3557; }
+    .dept-card .title { font-size: 9px; font-weight: 800; color: #457b9d; text-transform: uppercase; }
+
+    /* Modal List */
+    .modal-list-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9000; align-items: flex-end; justify-content: center; }
+    .modal-list-content { background: #f8fafc; width: 100%; max-width: 480px; height: 85vh; border-radius: 24px 24px 0 0; padding: 20px; position: relative; overflow-y: auto; }
+    .btn-close-modal { position: absolute; top: 15px; right: 20px; background: #e2e8f0; border: none; width: 32px; height: 32px; border-radius: 50%; font-weight: bold; cursor: pointer; }
+    
+    .warning-item { display: flex; gap: 12px; padding: 12px; background: #fff; border-radius: 15px; margin-bottom: 12px; border: 1px solid #f1f5f9; position: relative; }
+    .warning-img { width: 65px; height: 65px; border-radius: 12px; object-fit: cover; background: #f1f5f9; cursor: pointer; }
+    .warning-info h4 { margin: 0; font-size: 13px; width: 85%; }
+    .warning-info p { margin: 3px 0; font-size: 11px; color: var(--text-muted); }
+    .btn-delete-item { position: absolute; top: 10px; right: 10px; background: #fff0f0; color: #ef476f; border: none; width: 30px; height: 30px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+
+    /* Form UI */
+    .card { background: white; padding: 20px; border-radius: var(--radius); box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 16px; border: 1px solid #f1f5f9; }
+    .card-title { font-size: 11px; font-weight: 700; color: var(--primary); margin-bottom: 15px; text-transform: uppercase; }
+    label { font-weight: 600; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: block; }
+    input, select { width: 100%; padding: 12px 14px; margin-bottom: 15px; border-radius: 12px; border: 1.5px solid #f1f5f9; font-size: 16px; }
+    input:focus, select:focus { outline: none; border-color: var(--primary); }
+    
+    .dept-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
+    .btn-dept { padding: 12px 2px; border: 1.5px solid #f1f5f9; background: #f8fafc; border-radius: 12px; cursor: pointer; text-align: center; font-size: 10px; font-weight: 700; color: var(--text-muted); }
+    .btn-dept.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .main-btn { width: 100%; padding: 14px; border-radius: 14px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .btn-save { background: linear-gradient(135deg, #059669, var(--success)); color: white; font-size: 16px; margin-top: 10px;}
+    #loader { display: none; position: fixed; inset: 0; background: rgba(255, 255, 255, 0.9); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; }
+    .spinner { width: 40px; height: 40px; border: 4px solid var(--primary-soft); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+
+<body>
+<div id="loader">
+  <div class="spinner"></div>
+  <p style="margin-top:15px; font-weight:700; color:var(--primary)">Memproses Database...</p>
+</div>
+
+<div class="container">
+  <div class="header-app">
+    <h2>Inventory Check</h2>
+    <p>Monitoring Tanggal Kadaluarsa Barang</p>
+  </div>
+
+  <div class="dashboard-header-title">
+    <span style="color:#ef476f; margin-right:6px; font-size:18px;">📌</span> 
+    TOTAL ISSUE: <span id="totalIssueCount" style="color:#ef476f; margin-left:4px; margin-right:4px;">0</span> ITEM
+  </div>
+  
+  <div class="dashboard-grid" id="dashboardGrid"></div>
+
+  <div class="card">
+    <div class="card-title">🏢 Klasifikasi Barang</div>
+    <label>Pilih Departement</label>
+    <div class="dept-group" id="deptGroupContainer"></div>
+    <label>Kategori Produk</label>
+    <select id="kategori" disabled><option value="">Pilih Dept terlebih dahulu...</option></select>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔍 Identitas Barang</div>
+    <div class="grid-2">
+      <div><label>Gondola</label><input type="text" id="gondola" placeholder="A-01"></div>
+      <div><label>Selving</label><input type="text" id="selving" placeholder="01"></div>
+    </div>
+    <label>Barcode / SKU</label>
+    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+      <input type="text" id="barcode" placeholder="Scan/Ketik">
+      <button type="button" class="main-btn" style="width: 60px; padding: 0; background: #e2e8f0; color:black;" onclick="document.getElementById('qr-input-file').click()">📂</button>
+    </div>
+    <input type="file" id="qr-input-file" accept="image/*" style="display:none">
+    <div id="reader"></div>
+    
+    <label>Deskripsi Nama Barang</label>
+    <input type="text" id="deskripsi" placeholder="Masukkan nama produk">
+  </div>
+
+  <div class="card">
+    <div class="card-title">🗓️ Detail Kadaluarsa</div>
+    <div class="grid-2">
+      <div><label>Jumlah (QTY)</label><input type="number" id="qty" value="1" min="1"></div>
+      <div><label>Tgl Kadaluarsa</label><input type="date" id="expiredDate"></div>
+    </div>
+    <label>Lampiran Foto</label>
+    <div class="grid-2">
+      <button type="button" class="main-btn" style="background:#f1f5f9; border:1px solid #e2e8f0; color:black;" onclick="document.getElementById('fotoInput').setAttribute('capture','environment'); document.getElementById('fotoInput').click();">📸 Kamera</button>
+      <button type="button" class="main-btn" style="background:#f1f5f9; border:1px solid #e2e8f0; color:black;" onclick="document.getElementById('fotoInput').removeAttribute('capture'); document.getElementById('fotoInput').click();">🖼️ Galeri</button>
+    </div>
+    <input type="file" id="fotoInput" accept="image/*" style="display:none" onchange="previewImage()">
+    <div id="previewContainer" style="display:none; position:relative; margin-top:10px;">
+      <img id="preview" style="width:100%; border-radius:12px;">
+      <button type="button" onclick="removeImage()" style="position:absolute; top:8px; right:8px; background:var(--danger); color:white; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer;">✕</button>
+    </div>
+  </div>
+
+  <button class="main-btn btn-save" id="btnSimpan" onclick="saveData()">💾 SIMPAN KE DATABASE</button>
+</div>
+
+<div id="listModal" class="modal-list-overlay" onclick="closeListModal()">
+  <div class="modal-list-content" onclick="event.stopPropagation()">
+    <button class="btn-close-modal" onclick="closeListModal()">✕</button>
+    <div id="modalTitle" style="font-weight:800; margin-bottom:15px; font-size:16px;">DETAIL</div>
+    <div id="modalListContainer"></div>
+  </div>
+</div>
+
+<script>
+  // ==========================================
+  // KONFIGURASI SUPABASE (GANTI DENGAN MILIK ANDA)
+  // ==========================================
+  const SUPABASE_URL = 'https://tplmwztdiccknphhxbqo.supabase.co/rest/v1/';
+  const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // Data Master Statis (Pengganti sheet DATA MASTER) 
+  // Anda bisa tambah/kurangi departemen disini
+  const masterData = [
+    { dept: "GROCERY", kategori: "FOOD" }, { dept: "GROCERY", kategori: "NONFOOD" },
+    { dept: "DND", kategori: "BEVERAGE" }, { dept: "DND", kategori: "DAIRY" },
+    { dept: "GMS", kategori: "KITCHEN" }, { dept: "HBC", kategori: "COSMETIC" },
+    { dept: "PRODUCE", kategori: "FRUIT" }, { dept: "NONFOOD", kategori: "TOYS" },
+    { dept: "BAKERY", kategori: "BREAD" }, { dept: "SUSHI", kategori: "FRESH" }
+  ];
+
+  let selectedDept = "";
+  let base64Image = "";
+  let cachedData = [];
+
+  function getIcon(dept) {
+    const i = { "DELICA": "🥗", "SUSHI": "🍣", "PRODUCE": "🥬", "BAKERY": "🍞", "GROCERY": "🛒", "DND": "🥛", "GMS": "🍽️", "HBC": "🧴" };
+    return i[dept.toUpperCase()] || "📦";
+  }
+
+  window.onload = () => {
+    // Generate Tombol Departemen
+    const uniqueDepts = [...new Set(masterData.map(item => item.dept))];
+    const container = document.getElementById("deptGroupContainer");
+    uniqueDepts.forEach(dept => {
+      container.innerHTML += `<div class="btn-dept" onclick="selectDept('${dept}', this)">${dept}</div>`;
+    });
+    fetchDashboardData();
+  };
+
+  function selectDept(dept, el) {
+    selectedDept = dept;
+    document.querySelectorAll('.btn-dept').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    
+    const kat = document.getElementById("kategori");
+    kat.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+    masterData.filter(x => x.dept === dept).forEach(x => {
+      kat.innerHTML += `<option value="${x.kategori}">${x.kategori}</option>`;
+    });
+    kat.disabled = false;
+  }
+
+  // MENGAMBIL DATA DARI SUPABASE
+  async function fetchDashboardData() {
+    const grid = document.getElementById("dashboardGrid");
+    grid.innerHTML = '<div style="grid-column: span 3; text-align:center; padding:10px; font-size:12px;">Memuat data...</div>';
+    
+    // Tarik semua baris data dari tabel data_expired
+    const { data, error } = await supabase.from('data_expired').select('*');
+    
+    if (error) { grid.innerHTML = 'Gagal memuat database.'; return; }
+    
+    cachedData = data;
+    document.getElementById("totalIssueCount").innerText = data.length;
+    
+    const depts = [...new Set(masterData.map(d => d.dept))];
+    grid.innerHTML = "";
+    
+    depts.forEach(dept => {
+      const items = data.filter(i => i.dept === dept);
+      const count = items.length;
+      const cClass = count > 0 ? "danger" : "safe";
+      grid.innerHTML += `
+        <div class="dept-card" onclick="openListModal('${dept}')">
+          <div class="count ${cClass}">${count}</div>
+          <div class="title">${getIcon(dept)} ${dept}</div>
+        </div>
+      `;
+    });
+  }
+
+  function openListModal(dept) {
+    document.getElementById("modalTitle").innerHTML = `${getIcon(dept)} ITEM WARNING: ${dept}`;
+    const container = document.getElementById("modalListContainer");
+    const items = cachedData.filter(i => i.dept === dept);
+    
+    if (items.length === 0) {
+      container.innerHTML = `<div style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:13px;">✅ Aman. Tidak ada peringatan expired.</div>`;
+    } else {
+      let html = '';
+      items.forEach(item => {
+        const img = item.foto_base64 
+          ? `<img src="${item.foto_base64}" class="warning-img">`
+          : `<div class="warning-img" style="display:flex; align-items:center; justify-content:center; font-size:24px;">📦</div>`;
+        html += `
+          <div class="warning-item">
+            ${img}
+            <div class="warning-info">
+              <h4>${item.deskripsi}</h4>
+              <p>📍 <b>${item.gondola}-${item.selving}</b> | <span style="color:var(--danger); font-weight:800;">Exp: ${item.expired}</span></p>
+              <p>SKU: ${item.barcode} | Qty: ${item.qty}</p>
+            </div>
+            <button class="btn-delete-item" onclick="deleteItem('${item.barcode}', '${item.deskripsi}')">🗑️</button>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+    document.getElementById("listModal").style.display = "flex";
+  }
+  function closeListModal() { document.getElementById("listModal").style.display = "none"; }
+
+  // HAPUS DATA DI SUPABASE
+  async function deleteItem(barcode, desc) {
+    if (confirm(`Hapus data "${desc}"?`)) {
+      document.getElementById("loader").style.display = 'flex';
+      closeListModal();
+      
+      const { error } = await supabase.from('data_expired').delete()
+        .eq('barcode', barcode).eq('deskripsi', desc);
+        
+      document.getElementById("loader").style.display = 'none';
+      if (error) alert("Gagal menghapus.");
+      else fetchDashboardData();
+    }
+  }
+
+  // SIMPAN DATA KE SUPABASE
+  async function saveData() {
+    const kat = document.getElementById("kategori").value;
+    const exp = document.getElementById("expiredDate").value;
+    if (!selectedDept || !kat || !exp) return alert("❌ Lengkapi Dept, Kategori, dan Tanggal!");
+    
+    document.getElementById("loader").style.display = 'flex';
+    
+    const payload = {
+      gondola: document.getElementById("gondola").value,
+      selving: document.getElementById("selving").value,
+      barcode: document.getElementById("barcode").value,
+      deskripsi: document.getElementById("deskripsi").value,
+      dept: selectedDept,
+      kategori: kat,
+      qty: parseInt(document.getElementById("qty").value) || 1,
+      expired: exp,
+      foto_base64: base64Image
+    };
+
+    const { error } = await supabase.from('data_expired').insert([payload]);
+    
+    document.getElementById("loader").style.display = 'none';
+    if (error) { alert("Error menyimpan ke database: " + error.message); } 
+    else { alert("✅ Data tersimpan cepat!"); fetchDashboardData(); }
+  }
+
+  // Image Processing & Scanner
+  function previewImage() {
+    const f = document.getElementById("fotoInput").files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = e => {
+      const img = new Image(); img.onload = () => {
+        const cvs = document.createElement('canvas'); let w = img.width, h = img.height;
+        if (w > 400) { h *= 400 / w; w = 400; } // Diperkecil ke 400px agar ringan simpan di Supabase Text
+        cvs.width = w; cvs.height = h; cvs.getContext('2d').drawImage(img, 0, 0, w, h);
+        base64Image = cvs.toDataURL('image/jpeg', 0.5);
+        document.getElementById("preview").src = base64Image;
+        document.getElementById("previewContainer").style.display = 'block';
+      }; img.src = e.target.result;
+    }; r.readAsDataURL(f);
+  }
+  function removeImage() { base64Image = ""; document.getElementById("fotoInput").value = ""; document.getElementById("previewContainer").style.display = 'none'; }
+  
+  document.getElementById('qr-input-file').addEventListener('change', e => {
+    if (e.target.files.length == 0) return;
+    const scanner = new Html5Qrcode("reader");
+    document.getElementById("loader").style.display = 'flex'; 
+    scanner.scanFile(e.target.files[0], true)
+      .then(t => { document.getElementById("barcode").value = t; document.getElementById("loader").style.display='none'; alert("Barcode terbaca!"); })
+      .catch(err => { document.getElementById("loader").style.display='none'; alert("Gagal baca barcode."); });
+  });
+</script>
+</body>
+</html>

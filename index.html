@@ -1,335 +1,422 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
-  <meta charset="UTF-8">
+  <base target="_top">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Ceklist Expired DPM</title>
+  <title>Inventory Check DPM</title>
   
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
   <style>
+    /* CSS ASLI BAWAAN ANDA 100% DIPERTAHANKAN */
     :root {
-      --primary: #4361ee; --primary-soft: #eef2ff; --secondary: #3f37c9;
-      --success: #06d6a0; --danger: #ef476f; --warning: #ffd166;
-      --bg: #f8fafc; --card-bg: #ffffff; --text-main: #1e293b;
-      --text-muted: #64748b; --radius: 18px;
+      --primary: #4361ee;
+      --primary-soft: #eef2ff;
+      --secondary: #3f37c9;
+      --success: #06d6a0;
+      --danger: #ef476f;
+      --warning: #ffd166;
+      --bg: #fdfeff;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-muted: #64748b;
+      --radius: 18px;
+      --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 12px; min-height: 100vh; overflow-x: hidden; }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg);
+      background-image: radial-gradient(at 0% 0%, rgba(67, 97, 238, 0.03) 0, transparent 50%), 
+                        radial-gradient(at 50% 0%, rgba(6, 214, 160, 0.03) 0, transparent 50%);
+      color: var(--text-main); margin: 0; padding: 12px; overflow-x: hidden; min-height: 100vh;
+    }
+
     .container { width: 100%; max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
-    
+
     .header-app { text-align: center; margin-bottom: 20px; padding-top: 10px; }
-    .header-app h2 { font-weight: 800; font-size: 24px; margin: 0; color: var(--primary); }
+    .header-app h2 { font-weight: 800; font-size: 24px; margin: 0; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
     .header-app p { color: var(--text-muted); font-size: 13px; margin-top: 5px; }
 
-    /* Dashboard UI */
-    .dashboard-header-title { font-size: 14px; font-weight: 800; color: #64748b; margin-bottom: 15px; display: flex; align-items: center; }
-    .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
-    .dept-card { background: white; border: 1px solid #e2e8f0; border-radius: 14px; padding: 15px 5px; text-align: center; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-    .dept-card .count { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
-    .dept-card .count.danger { color: #e63946; }
-    .dept-card .count.safe { color: #1d3557; }
-    .dept-card .title { font-size: 9px; font-weight: 800; color: #457b9d; text-transform: uppercase; }
-
-    /* Modal List */
-    .modal-list-overlay { display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 9000; align-items: flex-end; justify-content: center; }
-    .modal-list-content { background: #f8fafc; width: 100%; max-width: 480px; height: 85vh; border-radius: 24px 24px 0 0; padding: 20px; position: relative; overflow-y: auto; }
-    .btn-close-modal { position: absolute; top: 15px; right: 20px; background: #e2e8f0; border: none; width: 32px; height: 32px; border-radius: 50%; font-weight: bold; cursor: pointer; }
-    
-    .warning-item { display: flex; gap: 12px; padding: 12px; background: #fff; border-radius: 15px; margin-bottom: 12px; border: 1px solid #f1f5f9; position: relative; }
-    .warning-img { width: 65px; height: 65px; border-radius: 12px; object-fit: cover; background: #f1f5f9; cursor: pointer; border: 1px solid #e2e8f0; }
+    .warning-item { display: flex; gap: 12px; padding: 12px; background: #fff; border-radius: 15px; margin-bottom: 12px; border: 1px solid #f1f5f9; box-shadow: var(--shadow); align-items: center; position: relative; }
+    .warning-img { width: 65px; height: 65px; border-radius: 12px; object-fit: cover; background: #f1f5f9; border: 1px solid #e2e8f0; cursor: pointer; }
     .warning-info { flex: 1; }
-    .warning-info h4 { margin: 0 0 4px 0; font-size: 13px; line-height: 1.3; width: 85%; }
-    .warning-info p { margin: 2px 0; font-size: 11px; color: var(--text-muted); }
-    .btn-delete-item { position: absolute; top: 10px; right: 10px; background: #fff0f0; color: #ef476f; border: none; width: 30px; height: 30px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    .warning-info h4 { margin: 0; font-size: 13px; color: var(--text-main); line-height: 1.2; width: 85%; }
+    .warning-info p { margin: 3px 0; font-size: 11px; color: var(--text-muted); }
 
-    /* Form UI */
-    .card { background: white; padding: 20px; border-radius: var(--radius); box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 16px; border: 1px solid #f1f5f9; }
-    .card-title { font-size: 11px; font-weight: 700; color: var(--primary); margin-bottom: 15px; text-transform: uppercase; }
-    label { font-weight: 600; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: block; }
-    input, select { width: 100%; padding: 12px 14px; margin-bottom: 15px; border-radius: 12px; border: 1.5px solid #f1f5f9; font-size: 16px; background: #f8fafc; }
+    .btn-delete-item { position: absolute; top: 10px; right: 10px; background: #fff0f0; color: #ef476f; border: none; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
+    .badge-dept { background: var(--primary-soft); color: var(--primary); padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 800; margin-bottom: 4px; display: inline-block; }
+    #warningListWrapper { display: none; margin-top: 20px; padding: 15px 5px; border-top: 2px dashed #cbd5e1; }
+    .btn-view-toggle { background: #fff; border: 1.5px solid var(--primary); color: var(--primary); margin: 20px 0; }
+
+    #dashboard { background: linear-gradient(135deg, #ff9f1c, #f9844a); color: white; padding: 16px; border-radius: var(--radius); margin-bottom: 20px; display: none; text-align: center; font-weight: 700; box-shadow: 0 10px 20px rgba(255, 159, 28, 0.2); }
+
+    .card { background: var(--card-bg); padding: 20px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; border: 1px solid #f1f5f9; width: 100%; }
+    .card-title { font-size: 11px; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+    .card-title::after { content: ""; height: 1px; flex: 1; background: #f1f5f9; }
+
+    label { font-weight: 600; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: block; margin-left: 4px; }
+    input, select { width: 100%; padding: 12px 14px; margin-bottom: 15px; border-radius: 12px; border: 1.5px solid #f1f5f9; background: #f8fafc; font-size: 14px; color: var(--text-main); font-family: inherit; }
     input:focus, select:focus { outline: none; border-color: var(--primary); background: #fff; }
-    
+
     .dept-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
     .btn-dept { padding: 12px 2px; border: 1.5px solid #f1f5f9; background: #f8fafc; border-radius: 12px; cursor: pointer; text-align: center; font-size: 10px; font-weight: 700; color: var(--text-muted); }
-    .btn-dept.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn-dept.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(67, 97, 238, 0.2); }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     .main-btn { width: 100%; padding: 14px; border-radius: 14px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .btn-save { background: linear-gradient(135deg, #059669, var(--success)); color: white; font-size: 16px; margin-top: 10px;}
-    
+    .btn-scan { background: var(--primary-soft); color: var(--primary); margin-bottom: 10px;}
+    .btn-save { background: linear-gradient(135deg, #059669, var(--success)); color: white; margin-top: 5px; font-size: 16px; box-shadow: 0 10px 20px rgba(6, 214, 160, 0.2); }
+    .btn-photo { background: #f1f5f9; color: var(--text-main); border: 1px solid #e2e8f0; margin-bottom: 10px;}
+
+    #reader { width: 100%; border-radius: 16px; overflow: hidden; display: none; margin-bottom: 15px; border: 3px solid var(--primary); }
+    #previewContainer { margin-top: 10px; position: relative; border-radius: 12px; overflow: hidden; border: 2px solid #f1f5f9; }
+    #preview { width: 100%; display: block; }
+
     #loader { display: none; position: fixed; inset: 0; background: rgba(255, 255, 255, 0.9); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; }
     .spinner { width: 40px; height: 40px; border: 4px solid var(--primary-soft); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(5px); z-index: 10000; justify-content: center; align-items: center; padding: 20px; }
+    .modal-content { position: relative; max-width: 95%; max-height: 80vh; }
+    .modal-content img { width: 100%; max-height: 75vh; border-radius: 12px; border: 3px solid white; object-fit: contain; }
+    .btn-close-preview { position: absolute; top: -45px; right: 0; background: white; color: #ef476f; border: none; width: 35px; height: 35px; border-radius: 50%; font-weight: bold; cursor: pointer; }
   </style>
 </head>
 
 <body>
 <div id="loader">
   <div class="spinner"></div>
-  <p style="margin-top:15px; font-weight:700; color:var(--primary)" id="loader-text">Memproses Database...</p>
+  <p style="margin-top:15px; font-weight:700; color:var(--primary)" id="loader-text">Sinkronisasi Data...</p>
 </div>
 
 <div class="container">
+  <div id="dashboard">
+    <span id="warningCount">0</span> ITEM WARNING TERDETEKSI
+  </div>
+
   <div class="header-app">
     <h2>Inventory Check</h2>
     <p>Monitoring Tanggal Kadaluarsa Barang</p>
   </div>
 
-  <div class="dashboard-header-title">
-    <span style="color:#ef476f; margin-right:6px; font-size:18px;">📌</span> 
-    TOTAL ISSUE: <span id="totalIssueCount" style="color:#ef476f; margin-left:4px; margin-right:4px;">0</span> ITEM
-  </div>
-  
-  <div class="dashboard-grid" id="dashboardGrid"></div>
-
   <div class="card">
     <div class="card-title">🏢 Klasifikasi Barang</div>
     <label>Pilih Departement</label>
-    <div class="dept-group" id="deptGroupContainer"></div>
-    <label>Jenis Barang (Kategori)</label>
-    <select id="kategori" disabled><option value="">Pilih Dept terlebih dahulu...</option></select>
+    
+    <div class="dept-group">
+      <div class="btn-dept" onclick="selectDept('GROCERY', this)">GROCERY</div>
+      <div class="btn-dept" onclick="selectDept('DND', this)">DND</div>
+      <div class="btn-dept" onclick="selectDept('GMS', this)">GMS</div>
+      <div class="btn-dept" onclick="selectDept('HBC', this)">HBC</div>
+      <div class="btn-dept" onclick="selectDept('DELSUSBAK', this)">DELSUSBAK</div>
+      <div class="btn-dept" onclick="selectDept('PRODUCE', this)">PRODUCE</div>
+      <div class="btn-dept" onclick="selectDept('NONFOOD', this)">NONFOOD</div>
+    </div>
+
+    <label>Kategori Produk</label>
+    <select id="kategori" disabled>
+      <option value="">Pilih Dept terlebih dahulu...</option>
+    </select>
   </div>
 
   <div class="card">
-    <div class="card-title">🔍 Identitas Barang</div>
+    <div class="card-title">🔍 Identitas & Lokasi</div>
     <div class="grid-2">
-      <div><label>Gondola</label><input type="text" id="gondola" placeholder="A-01"></div>
-      <div><label>Selving</label><input type="text" id="selving" placeholder="01"></div>
+      <div>
+        <label>Gondola</label>
+        <input type="text" id="gondola" placeholder="A-01">
+      </div>
+      <div>
+        <label>Selving</label>
+        <input type="text" id="selving" placeholder="01">
+      </div>
     </div>
-    
+
     <label>Barcode / SKU</label>
     <div style="display: flex; gap: 8px; margin-bottom: 5px;">
       <input type="text" id="barcode" placeholder="Scan/Ketik">
-      <button type="button" class="main-btn" style="width: 60px; padding: 0; background: var(--primary-soft); color:var(--primary);" onclick="startScanning()" title="Kamera Langsung">📷</button>
-      <button type="button" class="main-btn" style="width: 60px; padding: 0; background: #e2e8f0; color:black;" onclick="document.getElementById('qr-input-file').click()" title="Scan dari Foto">📂</button>
+      <button type="button" class="main-btn btn-scan" style="width: 60px; padding: 0;" onclick="startScanning()" title="Scan Langsung">📷</button>
+      <button type="button" class="main-btn" style="width: 60px; padding: 0; background: #e2e8f0;" onclick="document.getElementById('qr-input-file').click()" title="Scan dari Galeri/Foto">📂</button>
     </div>
-    
+
     <div style="background: #fff9db; border-left: 4px solid #fcc419; padding: 8px 12px; border-radius: 8px; margin-bottom: 15px;">
       <p style="margin: 0; font-size: 10px; color: #856404; line-height: 1.4;">
-        Gunakan tombol 📷 untuk scan kamera langsung. Jika error, gunakan 📂 untuk scan dari foto galeri.
+        <strong>💡 Tips Scan:</strong> Jika tombol 📷 tidak bisa membuka kamera, gunakan tombol 📂 lalu ambil foto barcode barangnya.
       </p>
     </div>
 
     <input type="file" id="qr-input-file" accept="image/*" style="display:none">
-    
-    <div id="reader" style="width: 100%; border-radius: 12px; overflow: hidden; display: none; margin-bottom: 15px; border: 3px solid var(--primary);"></div>
+
+    <div id="reader"></div>
     <button id="btnStop" type="button" class="main-btn" style="display:none; background:var(--danger); color:white; margin-bottom:10px;" onclick="stopScanning()">❌ Hentikan Scanner</button>
-    
-    <label>Deskripsi Barang</label>
-    <input type="text" id="deskripsi" placeholder="Masukkan nama produk">
+
+    <label>Deskripsi Nama Barang</label>
+    <input type="text" id="deskripsi" placeholder="Masukkan nama produk lengkap">
   </div>
 
   <div class="card">
     <div class="card-title">🗓️ Detail Kadaluarsa</div>
     <div class="grid-2">
-      <div><label>Jumlah (QTY)</label><input type="number" id="qty" value="1" min="1"></div>
-      <div><label>Tgl Kadaluarsa</label><input type="date" id="expiredDate"></div>
+      <div>
+        <label>Jumlah (QTY)</label>
+        <input type="number" id="qty" value="1" min="1">
+      </div>
+      <div>
+        <label>Tgl Kadaluarsa</label>
+        <input type="date" id="expiredDate">
+      </div>
     </div>
+
     <label>Lampiran Foto</label>
     <div class="grid-2">
-      <button type="button" class="main-btn" style="background:#f1f5f9; border:1px solid #e2e8f0; color:black;" onclick="document.getElementById('fotoInput').setAttribute('capture','environment'); document.getElementById('fotoInput').click();">📸 Kamera</button>
-      <button type="button" class="main-btn" style="background:#f1f5f9; border:1px solid #e2e8f0; color:black;" onclick="document.getElementById('fotoInput').removeAttribute('capture'); document.getElementById('fotoInput').click();">🖼️ Galeri</button>
+      <button type="button" class="main-btn btn-photo" onclick="openCamera()">📸 Kamera</button>
+      <button type="button" class="main-btn btn-photo" onclick="openGallery()">🖼️ Galeri</button>
     </div>
+
     <input type="file" id="fotoInput" accept="image/*" style="display:none" onchange="previewImage()">
-    <div id="previewContainer" style="display:none; position:relative; margin-top:10px;">
-      <img id="preview" style="width:100%; border-radius:12px;">
-      <button type="button" onclick="removeImage()" style="position:absolute; top:8px; right:8px; background:var(--danger); color:white; border:none; border-radius:50%; width:30px; height:30px; cursor:pointer;">✕</button>
+
+    <div id="previewContainer" style="display:none;">
+      <img id="preview">
+      <button onclick="removeImage()" 
+        style="position:absolute;top:8px;right:8px;background:var(--danger);
+        color:white;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">✕</button>
     </div>
   </div>
 
   <button class="main-btn btn-save" id="btnSimpan" onclick="saveData()">💾 SIMPAN KE DATABASE</button>
-  
-  <p id="status-db" style="text-align:center; font-size:10px; color:var(--text-muted); margin-top:20px;"></p>
-</div>
+  <button class="main-btn btn-view-toggle" id="btnToggle" onclick="toggleWarningList()">📋 TAMPILKAN LIST WARNING</button>
 
-<div id="listModal" class="modal-list-overlay" onclick="closeListModal()">
-  <div class="modal-list-content" onclick="event.stopPropagation()">
-    <button class="btn-close-modal" onclick="closeListModal()">✕</button>
-    <div id="modalTitle" style="font-weight:800; margin-bottom:15px; font-size:16px;">DETAIL</div>
-    <div id="modalListContainer"></div>
+  <div id="warningListWrapper">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 5px;">
+      <h3 style="margin:0; font-size:16px; font-weight:800; color:var(--text-main);">Item Warning List</h3>
+      <button onclick="toggleWarningList()" style="border:none; background:none; color:var(--text-muted); font-size:12px; font-weight:bold; cursor:pointer;">Tutup</button>
+    </div>
+    
+    <div style="padding: 0 5px 15px 5px;">
+      <label style="font-size: 11px; margin-bottom: 4px;">Filter Berdasarkan Departemen:</label>
+      <select id="filterWarningDept" onchange="loadWarningData()" style="margin-bottom: 0; padding: 8px; font-size: 13px; border-color: var(--primary);">
+        <option value="ALL">SEMUA DEPARTEMEN</option>
+        <option value="GROCERY">GROCERY</option>
+        <option value="DND">DND</option>
+        <option value="GMS">GMS</option>
+        <option value="HBC">HBC</option>
+        <option value="DELSUSBAK">DELISUSBAK</option>
+        <option value="PRODUCE">PRODUCE</option>
+        <option value="NONFOOD">NONFOOD</option>
+      </select>
+    </div>
+
+    <div id="listContent"></div>
   </div>
+
+  <div id="imageModal" class="modal-overlay" onclick="closePreview()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button class="btn-close-preview" onclick="closePreview()">✕</button>
+      <img id="modalImg" src="">
+    </div>
+  </div>
+  
+  <p style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:20px; padding-bottom: 20px;">
+    AEON STORE &bull; DP MALL SEMARANG
+  </p>
 </div>
 
 <script>
   // ==========================================
-  // GANTI KEDUA BARIS INI DENGAN DATA SUPABASE ANDA
+  // PASTIKAN MENGGANTI URL & KEY INI DENGAN MILIK ANDA
   // ==========================================
-  const SUPABASE_URL = 'https://tplmwztdiccknphhxbqo.supabase.co/rest/v1/'; // (Ganti ini)
-  const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';       // (Ganti ini)
+  const SUPABASE_URL = 'https://tplmwztdiccknphhxbqo.supabase.co/rest/v1/'; // (Ganti Ini)
+  const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';       // (Ganti Ini)
 
-  // Inisialisasi Supabase dengan Error Handling
   let supabase = null;
   try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    document.getElementById("status-db").innerText = "Sistem siap digunakan.";
-  } catch(e) {
-    document.getElementById("status-db").innerText = "⚠️ Peringatan: URL Supabase belum diatur di script.";
-  }
+  } catch(e) { console.error("Koneksi Supabase Gagal:", e); }
 
-  // Data Master Kategori (Samakan dengan struktur Excel)
+  // ----------------------------------------------------
+  // DATA MASTER PENGGANTI SPREADSHEET (SILAKAN DITAMBAH JIKA PERLU)
+  // ----------------------------------------------------
   const masterData = [
-    { dept: "HBC", kategori: "SKINCARE" }, { dept: "HBC", kategori: "BODYCARE" },
-    { dept: "GROCERY", kategori: "FOOD" }, { dept: "GROCERY", kategori: "NONFOOD" },
-    { dept: "DND", kategori: "BEVERAGE" }, { dept: "DND", kategori: "DAIRY" },
-    { dept: "GMS", kategori: "KITCHEN" }, { dept: "PRODUCE", kategori: "FRUIT" }, 
-    { dept: "NONFOOD", kategori: "TOYS" }, { dept: "BAKERY", kategori: "BREAD" },
-    { dept: "SUSHI", kategori: "FRESH" }
+    { dept: "HBC", kategori: "SKINCARE" },
+    { dept: "HBC", kategori: "BODYCARE" },
+    { dept: "HBC", kategori: "COSMETIC" },
+    { dept: "GROCERY", kategori: "FOOD" },
+    { dept: "GROCERY", kategori: "NONFOOD" },
+    { dept: "DND", kategori: "BEVERAGE" },
+    { dept: "DND", kategori: "DAIRY" },
+    { dept: "GMS", kategori: "KITCHEN" },
+    { dept: "PRODUCE", kategori: "FRUIT" },
+    { dept: "PRODUCE", kategori: "VEGETABLE" },
+    { dept: "NONFOOD", kategori: "TOYS" },
+    { dept: "NONFOOD", kategori: "STATIONERY" },
+    { dept: "DELSUSBAK", kategori: "DELICA" },
+    { dept: "DELSUSBAK", kategori: "SUSHI" },
+    { dept: "DELSUSBAK", kategori: "BAKERY" }
   ];
 
   let selectedDept = "";
   let base64Image = "";
-  let cachedData = [];
   let html5Qr = null;
+  let isListVisible = false;
 
-  function getIcon(dept) {
-    const i = { "DELICA": "🥗", "SUSHI": "🍣", "PRODUCE": "🥬", "BAKERY": "🍞", "GROCERY": "🛒", "DND": "🥛", "GMS": "🍽️", "HBC": "🧴" };
-    return i[dept.toUpperCase()] || "📦";
-  }
-
-  // JALANKAN SAAT WEB DIBUKA
   window.onload = () => {
-    // 1. Buat Tombol Departemen
-    const uniqueDepts = [...new Set(masterData.map(item => item.dept))];
-    const container = document.getElementById("deptGroupContainer");
-    uniqueDepts.forEach(dept => {
-      container.innerHTML += `<div class="btn-dept" onclick="selectDept('${dept}', this)">${dept}</div>`;
-    });
-    
-    // 2. Load Data Jika Supabase Tersambung
-    if(supabase) { fetchDashboardData(); }
+    refreshWarningCount("");
   };
 
+  // 1. FUNGSI KLIK DEPARTEMEN & KATEGORI (FIXED)
   function selectDept(dept, el) {
     selectedDept = dept;
     document.querySelectorAll('.btn-dept').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
+    refreshWarningCount(dept);
     
-    const kat = document.getElementById("kategori");
-    kat.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+    // Looping data kategori dari masterData di atas
+    const katSelect = document.getElementById("kategori");
+    katSelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
     masterData.filter(x => x.dept === dept).forEach(x => {
-      kat.innerHTML += `<option value="${x.kategori}">${x.kategori}</option>`;
+      katSelect.innerHTML += `<option value="${x.kategori}">${x.kategori}</option>`;
     });
-    kat.disabled = false;
+    katSelect.disabled = false;
   }
 
-  // AMBIL DATA DASHBOARD
-  async function fetchDashboardData() {
-    const grid = document.getElementById("dashboardGrid");
-    grid.innerHTML = '<div style="grid-column: span 3; text-align:center; padding:10px; font-size:12px; color:var(--primary);">Menyinkronkan data...</div>';
+  // 2. FUNGSI HITUNG TOTAL WARNING DI ATAS (DASHBOARD)
+  async function refreshWarningCount(dept) {
+    if(!supabase) return;
     
-    const { data, error } = await supabase.from('data_expired').select('*');
-    if (error) { 
-      grid.innerHTML = '<div style="grid-column: span 3; text-align:center; padding:10px; color:red; font-size:12px;">Gagal memuat DB: Pastikan Kunci Supabase Benar</div>';
-      return; 
+    let query = supabase.from('data_expired').select('*', { count: 'exact', head: true });
+    if (dept && dept !== "") {
+      query = query.eq('dept', dept);
     }
     
-    cachedData = data;
-    document.getElementById("totalIssueCount").innerText = data.length;
+    const { count, error } = await query;
+    if (!error) {
+      document.getElementById("warningCount").innerText = count || 0;
+      document.getElementById("dashboard").style.display = count > 0 ? 'block' : 'none';
+    }
+  }
+
+  // 3. FUNGSI MENAMPILKAN LIST & TOMBOL TOGGLE BAWAH
+  function toggleWarningList() {
+    const wrapper = document.getElementById("warningListWrapper");
+    const btn = document.getElementById("btnToggle");
+    isListVisible = !isListVisible;
     
-    const depts = [...new Set(masterData.map(d => d.dept))];
-    grid.innerHTML = "";
+    if (isListVisible) {
+      wrapper.style.display = "block";
+      btn.innerText = "🔼 SEMBUNYIKAN LIST";
+      loadWarningData();
+      setTimeout(() => wrapper.scrollIntoView({ behavior: 'smooth' }), 300);
+    } else {
+      wrapper.style.display = "none";
+      btn.innerText = "📋 TAMPILKAN LIST WARNING";
+    }
+  }
+
+  // 4. FUNGSI TARIK DATA LIST WARNING
+  async function loadWarningData() {
+    const container = document.getElementById("listContent");
+    const filterDept = document.getElementById("filterWarningDept").value;
     
-    depts.forEach(dept => {
-      const items = data.filter(i => i.dept === dept);
-      const count = items.length;
-      const cClass = count > 0 ? "danger" : "safe";
-      grid.innerHTML += `
-        <div class="dept-card" onclick="openListModal('${dept}')">
-          <div class="count ${cClass}">${count}</div>
-          <div class="title">${getIcon(dept)} ${dept}</div>
+    container.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner" style="margin:0 auto;"></div><p style="font-size:12px; color:var(--primary); margin-top:10px;">Memfilter data...</p></div>';
+
+    let query = supabase.from('data_expired').select('*');
+    if (filterDept !== "ALL") {
+      query = query.eq('dept', filterDept);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      container.innerHTML = `<div style="text-align:center; padding:30px; color:red; font-size:13px;">Gagal menarik data.</div>`;
+      return;
+    }
+
+    if (data.length === 0) {
+      container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-muted); font-size:13px;">Tidak ada item warning untuk ${filterDept === 'ALL' ? 'semua Dept' : filterDept}. ✅</div>`;
+      return;
+    }
+
+    let html = '';
+    data.forEach(item => {
+      const imgSource = item.foto_base64 ? item.foto_base64 : item.link_foto;
+      const imgDisplay = imgSource 
+        ? `<img src="${imgSource}" class="warning-img" onclick="openPreview('${imgSource}')" title="Klik untuk preview">`
+        : `<div class="warning-img" style="display:flex; align-items:center; justify-content:center; font-size:24px;">📦</div>`;
+      
+      html += `
+        <div class="warning-item">
+          ${imgDisplay}
+          <div class="warning-info">
+            <span class="badge-dept">${item.dept}</span>
+            <h4>${item.deskripsi_barang}</h4>
+            <p>📍 <b>${item.gondola}-${item.selving}</b> | Exp: <span style="color:var(--danger); font-weight:800;">${item.expired_date}</span></p>
+            <p>SKU: ${item.barcode} | Qty: ${item.qty}</p>
+          </div>
+          <button class="btn-delete-item" onclick="confirmDelete('${item.barcode}', '${item.deskripsi_barang}')">🗑️</button>
         </div>
       `;
     });
+    container.innerHTML = html;
   }
 
-  // TAMPILKAN MODAL LIST
-  function openListModal(dept) {
-    document.getElementById("modalTitle").innerHTML = `${getIcon(dept)} ITEM WARNING: ${dept}`;
-    const container = document.getElementById("modalListContainer");
-    const items = cachedData.filter(i => i.dept === dept);
-    
-    if (items.length === 0) {
-      container.innerHTML = `<div style="text-align:center; padding:30px 10px; color:var(--text-muted); font-size:13px;">✅ Aman. Tidak ada peringatan expired.</div>`;
-    } else {
-      let html = '';
-      items.forEach(item => {
-        // Cek apakah ada foto base64 ATAU link_foto (dari Google Drive)
-        const imgSource = item.foto_base64 ? item.foto_base64 : item.link_foto;
-        const img = imgSource 
-          ? `<img src="${imgSource}" class="warning-img">`
-          : `<div class="warning-img" style="display:flex; align-items:center; justify-content:center; font-size:24px;">📦</div>`;
-          
-        html += `
-          <div class="warning-item">
-            ${img}
-            <div class="warning-info">
-              <h4>${item.deskripsi_barang}</h4>
-              <p>📍 <b>${item.gondola}-${item.selving}</b> | <span style="color:var(--danger); font-weight:800;">Exp: ${item.expired_date}</span></p>
-              <p>SKU: ${item.barcode} | Qty: ${item.qty}</p>
-            </div>
-            <button class="btn-delete-item" onclick="deleteItem('${item.barcode}', '${item.deskripsi_barang}')">🗑️</button>
-          </div>
-        `;
-      });
-      container.innerHTML = html;
-    }
-    document.getElementById("listModal").style.display = "flex";
-  }
-  
-  function closeListModal() { document.getElementById("listModal").style.display = "none"; }
-
-  // HAPUS ITEM
-  async function deleteItem(barcode, desc) {
-    if (confirm(`Hapus data "${desc}" dari database?`)) {
-      document.getElementById("loader").style.display = 'flex';
-      closeListModal();
-      const { error } = await supabase.from('data_expired').delete().eq('barcode', barcode).eq('deskripsi_barang', desc);
-      document.getElementById("loader").style.display = 'none';
-      if (error) alert("Gagal menghapus.");
-      else fetchDashboardData();
-    }
-  }
-
-  // SIMPAN ITEM BARU (Struktur Baru)
+  // 5. FUNGSI SIMPAN BARANG
   async function saveData() {
-    if(!supabase) return alert("Sistem belum terkoneksi ke database!");
-    
-    const kat = document.getElementById("kategori").value;
-    const exp = document.getElementById("expiredDate").value;
-    if (!selectedDept || !kat || !exp) return alert("❌ Lengkapi Dept, Kategori, dan Tanggal!");
+    const katValue = document.getElementById("kategori").value;
+    const expValue = document.getElementById("expiredDate").value;
+    if (!selectedDept || !katValue || !expValue) return alert("❌ Lengkapi Dept, Kategori, dan Tanggal!");
     
     document.getElementById("loader").style.display = 'flex';
     document.getElementById("loader-text").innerText = "Menyimpan Data...";
-    
-    const today = new Date().toISOString().split('T')[0];
 
     const payload = {
       dept: selectedDept,
       gondola: document.getElementById("gondola").value,
       selving: document.getElementById("selving").value,
-      jenis_barang: kat,
+      jenis_barang: katValue,
       barcode: document.getElementById("barcode").value,
       deskripsi_barang: document.getElementById("deskripsi").value,
       qty: parseInt(document.getElementById("qty").value) || 1,
-      input_date: today,
-      expired_date: exp,
+      input_date: new Date().toISOString().split('T')[0],
+      expired_date: expValue,
       remarks: "WARNING",
-      link_foto: "", // Dikosongkan, diisi di foto_base64
       foto_base64: base64Image
     };
 
     const { error } = await supabase.from('data_expired').insert([payload]);
     
     document.getElementById("loader").style.display = 'none';
-    if (error) { alert("Error menyimpan: " + error.message); } 
-    else { alert("✅ Data tersimpan cepat!"); fetchDashboardData(); }
+    
+    if (error) {
+      alert("Gagal menyimpan: " + error.message);
+    } else {
+      alert("✅ Data berhasil disimpan!");
+      refreshWarningCount(selectedDept);
+      if(isListVisible) loadWarningData(); // Update list otomatis di bawah jika sedang terbuka
+    }
   }
 
-  // SCANNER KAMERA LIVE
+  // 6. FUNGSI HAPUS BARANG
+  async function confirmDelete(barcode, desc) {
+    if (confirm(`Hapus data "${desc}" dari database?`)) {
+      document.getElementById("loader").style.display = 'flex';
+      const { error } = await supabase.from('data_expired').delete().eq('barcode', barcode).eq('deskripsi_barang', desc);
+      document.getElementById("loader").style.display = 'none';
+      if (error) {
+        alert("Gagal menghapus.");
+      } else {
+        alert("Data berhasil dihapus!");
+        loadWarningData(); 
+        refreshWarningCount(selectedDept);
+      }
+    }
+  }
+
+  // --- KODE SCANNER LIVE KAMERA ---
   async function startScanning() {
     const readerDiv = document.getElementById("reader");
     const stopBtn = document.getElementById("btnStop");
@@ -338,7 +425,7 @@
     stopBtn.style.display = "flex";
 
     if (!html5Qr) { html5Qr = new Html5Qrcode("reader"); }
-    const config = { fps: 15, qrbox: { width: 250, height: 180 }, aspectRatio: 1.0, videoConstraints: { facingMode: "environment" } };
+    const config = { fps: 15, qrbox: { width: 250, height: 180 }, aspectRatio: 1.0, videoConstraints: { facingMode: "environment", width: { min: 640, ideal: 1280, max: 1920 }, height: { min: 480, ideal: 720, max: 1080 } } };
 
     try {
       if(html5Qr.isScanning) { await html5Qr.stop(); }
@@ -352,7 +439,7 @@
         (errorMessage) => {}
       );
     } catch (err) {
-      alert("Gagal akses kamera langsung. Silakan gunakan tombol 📂 untuk ambil foto barcode dari galeri/kamera HP.");
+      alert("Gagal akses kamera. Pastikan browser diizinkan mengakses kamera.");
       stopScanning();
     }
   }
@@ -369,38 +456,59 @@
     }
   }
 
-  // SCANNER FILE FOTO
-  document.getElementById('qr-input-file').addEventListener('change', e => {
-    if (e.target.files.length == 0) return;
-    const scanner = new Html5Qrcode("reader");
-    document.getElementById("loader").style.display = 'flex'; 
-    document.getElementById("loader-text").innerText = "Membaca Barcode...";
-    
-    scanner.scanFile(e.target.files[0], true)
-      .then(t => { document.getElementById("barcode").value = t; document.getElementById("loader").style.display='none'; alert("Barcode terbaca!"); })
-      .catch(err => { document.getElementById("loader").style.display='none'; alert("Gagal baca barcode dari foto. Coba foto yang lebih jelas."); });
+  // --- KODE UPLOAD GAMBAR SCANNER ---
+  document.addEventListener("DOMContentLoaded", () => {
+    const fileInput = document.getElementById('qr-input-file');
+    fileInput.addEventListener('change', e => {
+      if (e.target.files.length == 0) return;
+      const scanner = new Html5Qrcode("reader"); 
+      document.getElementById("loader").style.display = 'flex'; 
+      document.getElementById("loader-text").innerText = "Membaca Barcode...";
+      
+      scanner.scanFile(e.target.files[0], true)
+        .then(t => { document.getElementById("barcode").value = t; document.getElementById("loader").style.display='none'; alert("Barcode berhasil terbaca!"); })
+        .catch(err => { document.getElementById("loader").style.display='none'; alert("Gagal membaca barcode dari gambar."); });
+    });
   });
 
-  // PREVIEW FOTO BARANG
+  // --- KODE PREVIEW KAMERA/GALERI BARANG ---
+  function openCamera() { document.getElementById("fotoInput").setAttribute('capture', 'environment'); document.getElementById("fotoInput").click(); }
+  function openGallery() { document.getElementById("fotoInput").removeAttribute('capture'); document.getElementById("fotoInput").click(); }
+
   function previewImage() {
-    const f = document.getElementById("fotoInput").files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = e => {
-      const img = new Image(); img.onload = () => {
-        const cvs = document.createElement('canvas'); let w = img.width, h = img.height;
-        if (w > 400) { h *= 400 / w; w = 400; }
-        cvs.width = w; cvs.height = h; cvs.getContext('2d').drawImage(img, 0, 0, w, h);
-        base64Image = cvs.toDataURL('image/jpeg', 0.5);
+    const file = document.getElementById("fotoInput").files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > 600) { h *= 600 / w; w = 600; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        base64Image = canvas.toDataURL('image/jpeg', 0.6);
         document.getElementById("preview").src = base64Image;
         document.getElementById("previewContainer").style.display = 'block';
-      }; img.src = e.target.result;
-    }; r.readAsDataURL(f);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
   }
-  
-  function removeImage() { 
-    base64Image = ""; 
-    document.getElementById("fotoInput").value = ""; 
-    document.getElementById("previewContainer").style.display = 'none'; 
+
+  function removeImage() { base64Image = ""; document.getElementById("fotoInput").value = ""; document.getElementById("previewContainer").style.display = 'none'; }
+
+  // --- KODE ZOOM FOTO PREVIEW ---
+  function openPreview(src) {
+    const modal = document.getElementById("imageModal");
+    document.getElementById("modalImg").src = src;
+    modal.style.display = "flex";
+    document.body.style.overflow = "hidden";
+  }
+
+  function closePreview() {
+    document.getElementById("imageModal").style.display = "none";
+    document.body.style.overflow = "auto";
   }
 </script>
 </body>

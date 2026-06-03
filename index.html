@@ -40,17 +40,18 @@
     .btn-close-modal { position: absolute; top: 15px; right: 20px; background: #e2e8f0; border: none; width: 32px; height: 32px; border-radius: 50%; font-weight: bold; cursor: pointer; }
     
     .warning-item { display: flex; gap: 12px; padding: 12px; background: #fff; border-radius: 15px; margin-bottom: 12px; border: 1px solid #f1f5f9; position: relative; }
-    .warning-img { width: 65px; height: 65px; border-radius: 12px; object-fit: cover; background: #f1f5f9; cursor: pointer; }
-    .warning-info h4 { margin: 0; font-size: 13px; width: 85%; }
-    .warning-info p { margin: 3px 0; font-size: 11px; color: var(--text-muted); }
+    .warning-img { width: 65px; height: 65px; border-radius: 12px; object-fit: cover; background: #f1f5f9; cursor: pointer; border: 1px solid #e2e8f0; }
+    .warning-info { flex: 1; }
+    .warning-info h4 { margin: 0 0 4px 0; font-size: 13px; line-height: 1.3; width: 85%; }
+    .warning-info p { margin: 2px 0; font-size: 11px; color: var(--text-muted); }
     .btn-delete-item { position: absolute; top: 10px; right: 10px; background: #fff0f0; color: #ef476f; border: none; width: 30px; height: 30px; border-radius: 8px; font-size: 14px; cursor: pointer; }
 
     /* Form UI */
     .card { background: white; padding: 20px; border-radius: var(--radius); box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 16px; border: 1px solid #f1f5f9; }
     .card-title { font-size: 11px; font-weight: 700; color: var(--primary); margin-bottom: 15px; text-transform: uppercase; }
     label { font-weight: 600; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: block; }
-    input, select { width: 100%; padding: 12px 14px; margin-bottom: 15px; border-radius: 12px; border: 1.5px solid #f1f5f9; font-size: 16px; }
-    input:focus, select:focus { outline: none; border-color: var(--primary); }
+    input, select { width: 100%; padding: 12px 14px; margin-bottom: 15px; border-radius: 12px; border: 1.5px solid #f1f5f9; font-size: 16px; background: #f8fafc; }
+    input:focus, select:focus { outline: none; border-color: var(--primary); background: #fff; }
     
     .dept-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px; }
     .btn-dept { padding: 12px 2px; border: 1.5px solid #f1f5f9; background: #f8fafc; border-radius: 12px; cursor: pointer; text-align: center; font-size: 10px; font-weight: 700; color: var(--text-muted); }
@@ -59,6 +60,7 @@
 
     .main-btn { width: 100%; padding: 14px; border-radius: 14px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
     .btn-save { background: linear-gradient(135deg, #059669, var(--success)); color: white; font-size: 16px; margin-top: 10px;}
+    
     #loader { display: none; position: fixed; inset: 0; background: rgba(255, 255, 255, 0.9); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; }
     .spinner { width: 40px; height: 40px; border: 4px solid var(--primary-soft); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -68,7 +70,7 @@
 <body>
 <div id="loader">
   <div class="spinner"></div>
-  <p style="margin-top:15px; font-weight:700; color:var(--primary)">Memproses Database...</p>
+  <p style="margin-top:15px; font-weight:700; color:var(--primary)" id="loader-text">Memproses Database...</p>
 </div>
 
 <div class="container">
@@ -88,7 +90,7 @@
     <div class="card-title">🏢 Klasifikasi Barang</div>
     <label>Pilih Departement</label>
     <div class="dept-group" id="deptGroupContainer"></div>
-    <label>Kategori Produk</label>
+    <label>Jenis Barang (Kategori)</label>
     <select id="kategori" disabled><option value="">Pilih Dept terlebih dahulu...</option></select>
   </div>
 
@@ -102,12 +104,13 @@
     <label>Barcode / SKU</label>
     <div style="display: flex; gap: 8px; margin-bottom: 5px;">
       <input type="text" id="barcode" placeholder="Scan/Ketik">
-      <button type="button" class="main-btn" style="width: 60px; padding: 0; background: var(--primary-soft); color:var(--primary);" onclick="startScanning()" title="Scan Langsung">📷</button>
+      <button type="button" class="main-btn" style="width: 60px; padding: 0; background: var(--primary-soft); color:var(--primary);" onclick="startScanning()" title="Kamera Langsung">📷</button>
       <button type="button" class="main-btn" style="width: 60px; padding: 0; background: #e2e8f0; color:black;" onclick="document.getElementById('qr-input-file').click()" title="Scan dari Foto">📂</button>
     </div>
+    
     <div style="background: #fff9db; border-left: 4px solid #fcc419; padding: 8px 12px; border-radius: 8px; margin-bottom: 15px;">
       <p style="margin: 0; font-size: 10px; color: #856404; line-height: 1.4;">
-        <strong>💡 Tips Scan:</strong> Gunakan tombol 📷 untuk scan langsung. Jika kamera bermasalah, gunakan 📂 untuk scan dari foto.
+        Gunakan tombol 📷 untuk scan kamera langsung. Jika error, gunakan 📂 untuk scan dari foto galeri.
       </p>
     </div>
 
@@ -116,7 +119,7 @@
     <div id="reader" style="width: 100%; border-radius: 12px; overflow: hidden; display: none; margin-bottom: 15px; border: 3px solid var(--primary);"></div>
     <button id="btnStop" type="button" class="main-btn" style="display:none; background:var(--danger); color:white; margin-bottom:10px;" onclick="stopScanning()">❌ Hentikan Scanner</button>
     
-    <label>Deskripsi Nama Barang</label>
+    <label>Deskripsi Barang</label>
     <input type="text" id="deskripsi" placeholder="Masukkan nama produk">
   </div>
 
@@ -139,6 +142,8 @@
   </div>
 
   <button class="main-btn btn-save" id="btnSimpan" onclick="saveData()">💾 SIMPAN KE DATABASE</button>
+  
+  <p id="status-db" style="text-align:center; font-size:10px; color:var(--text-muted); margin-top:20px;"></p>
 </div>
 
 <div id="listModal" class="modal-list-overlay" onclick="closeListModal()">
@@ -151,38 +156,51 @@
 
 <script>
   // ==========================================
-  // KONFIGURASI SUPABASE (GANTI DENGAN MILIK ANDA)
+  // GANTI KEDUA BARIS INI DENGAN DATA SUPABASE ANDA
   // ==========================================
-  const SUPABASE_URL = 'https://tplmwztdiccknphhxbqo.supabase.co/rest/v1/';
-  const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const SUPABASE_URL = 'https://tplmwztdiccknphhxbqo.supabase.co/rest/v1/'; // (Ganti ini)
+  const SUPABASE_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';       // (Ganti ini)
 
-  // Data Master Statis
+  // Inisialisasi Supabase dengan Error Handling
+  let supabase = null;
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    document.getElementById("status-db").innerText = "Sistem siap digunakan.";
+  } catch(e) {
+    document.getElementById("status-db").innerText = "⚠️ Peringatan: URL Supabase belum diatur di script.";
+  }
+
+  // Data Master Kategori (Samakan dengan struktur Excel)
   const masterData = [
+    { dept: "HBC", kategori: "SKINCARE" }, { dept: "HBC", kategori: "BODYCARE" },
     { dept: "GROCERY", kategori: "FOOD" }, { dept: "GROCERY", kategori: "NONFOOD" },
     { dept: "DND", kategori: "BEVERAGE" }, { dept: "DND", kategori: "DAIRY" },
-    { dept: "GMS", kategori: "KITCHEN" }, { dept: "HBC", kategori: "COSMETIC" },
-    { dept: "PRODUCE", kategori: "FRUIT" }, { dept: "NONFOOD", kategori: "TOYS" },
-    { dept: "BAKERY", kategori: "BREAD" }, { dept: "SUSHI", kategori: "FRESH" }
+    { dept: "GMS", kategori: "KITCHEN" }, { dept: "PRODUCE", kategori: "FRUIT" }, 
+    { dept: "NONFOOD", kategori: "TOYS" }, { dept: "BAKERY", kategori: "BREAD" },
+    { dept: "SUSHI", kategori: "FRESH" }
   ];
 
   let selectedDept = "";
   let base64Image = "";
   let cachedData = [];
-  let html5Qr = null; // Variabel untuk kamera live
+  let html5Qr = null;
 
   function getIcon(dept) {
     const i = { "DELICA": "🥗", "SUSHI": "🍣", "PRODUCE": "🥬", "BAKERY": "🍞", "GROCERY": "🛒", "DND": "🥛", "GMS": "🍽️", "HBC": "🧴" };
     return i[dept.toUpperCase()] || "📦";
   }
 
+  // JALANKAN SAAT WEB DIBUKA
   window.onload = () => {
+    // 1. Buat Tombol Departemen
     const uniqueDepts = [...new Set(masterData.map(item => item.dept))];
     const container = document.getElementById("deptGroupContainer");
     uniqueDepts.forEach(dept => {
       container.innerHTML += `<div class="btn-dept" onclick="selectDept('${dept}', this)">${dept}</div>`;
     });
-    fetchDashboardData();
+    
+    // 2. Load Data Jika Supabase Tersambung
+    if(supabase) { fetchDashboardData(); }
   };
 
   function selectDept(dept, el) {
@@ -198,13 +216,16 @@
     kat.disabled = false;
   }
 
-  // --- LOGIKA SUPABASE ---
+  // AMBIL DATA DASHBOARD
   async function fetchDashboardData() {
     const grid = document.getElementById("dashboardGrid");
-    grid.innerHTML = '<div style="grid-column: span 3; text-align:center; padding:10px; font-size:12px;">Memuat data...</div>';
+    grid.innerHTML = '<div style="grid-column: span 3; text-align:center; padding:10px; font-size:12px; color:var(--primary);">Menyinkronkan data...</div>';
     
     const { data, error } = await supabase.from('data_expired').select('*');
-    if (error) { grid.innerHTML = 'Gagal memuat database.'; return; }
+    if (error) { 
+      grid.innerHTML = '<div style="grid-column: span 3; text-align:center; padding:10px; color:red; font-size:12px;">Gagal memuat DB: Pastikan Kunci Supabase Benar</div>';
+      return; 
+    }
     
     cachedData = data;
     document.getElementById("totalIssueCount").innerText = data.length;
@@ -225,6 +246,7 @@
     });
   }
 
+  // TAMPILKAN MODAL LIST
   function openListModal(dept) {
     document.getElementById("modalTitle").innerHTML = `${getIcon(dept)} ITEM WARNING: ${dept}`;
     const container = document.getElementById("modalListContainer");
@@ -235,18 +257,21 @@
     } else {
       let html = '';
       items.forEach(item => {
-        const img = item.foto_base64 
-          ? `<img src="${item.foto_base64}" class="warning-img">`
+        // Cek apakah ada foto base64 ATAU link_foto (dari Google Drive)
+        const imgSource = item.foto_base64 ? item.foto_base64 : item.link_foto;
+        const img = imgSource 
+          ? `<img src="${imgSource}" class="warning-img">`
           : `<div class="warning-img" style="display:flex; align-items:center; justify-content:center; font-size:24px;">📦</div>`;
+          
         html += `
           <div class="warning-item">
             ${img}
             <div class="warning-info">
-              <h4>${item.deskripsi}</h4>
-              <p>📍 <b>${item.gondola}-${item.selving}</b> | <span style="color:var(--danger); font-weight:800;">Exp: ${item.expired}</span></p>
+              <h4>${item.deskripsi_barang}</h4>
+              <p>📍 <b>${item.gondola}-${item.selving}</b> | <span style="color:var(--danger); font-weight:800;">Exp: ${item.expired_date}</span></p>
               <p>SKU: ${item.barcode} | Qty: ${item.qty}</p>
             </div>
-            <button class="btn-delete-item" onclick="deleteItem('${item.barcode}', '${item.deskripsi}')">🗑️</button>
+            <button class="btn-delete-item" onclick="deleteItem('${item.barcode}', '${item.deskripsi_barang}')">🗑️</button>
           </div>
         `;
       });
@@ -257,44 +282,54 @@
   
   function closeListModal() { document.getElementById("listModal").style.display = "none"; }
 
+  // HAPUS ITEM
   async function deleteItem(barcode, desc) {
-    if (confirm(`Hapus data "${desc}"?`)) {
+    if (confirm(`Hapus data "${desc}" dari database?`)) {
       document.getElementById("loader").style.display = 'flex';
       closeListModal();
-      const { error } = await supabase.from('data_expired').delete().eq('barcode', barcode).eq('deskripsi', desc);
+      const { error } = await supabase.from('data_expired').delete().eq('barcode', barcode).eq('deskripsi_barang', desc);
       document.getElementById("loader").style.display = 'none';
       if (error) alert("Gagal menghapus.");
       else fetchDashboardData();
     }
   }
 
+  // SIMPAN ITEM BARU (Struktur Baru)
   async function saveData() {
+    if(!supabase) return alert("Sistem belum terkoneksi ke database!");
+    
     const kat = document.getElementById("kategori").value;
     const exp = document.getElementById("expiredDate").value;
     if (!selectedDept || !kat || !exp) return alert("❌ Lengkapi Dept, Kategori, dan Tanggal!");
     
     document.getElementById("loader").style.display = 'flex';
+    document.getElementById("loader-text").innerText = "Menyimpan Data...";
     
+    const today = new Date().toISOString().split('T')[0];
+
     const payload = {
+      dept: selectedDept,
       gondola: document.getElementById("gondola").value,
       selving: document.getElementById("selving").value,
+      jenis_barang: kat,
       barcode: document.getElementById("barcode").value,
-      deskripsi: document.getElementById("deskripsi").value,
-      dept: selectedDept,
-      kategori: kat,
+      deskripsi_barang: document.getElementById("deskripsi").value,
       qty: parseInt(document.getElementById("qty").value) || 1,
-      expired: exp,
+      input_date: today,
+      expired_date: exp,
+      remarks: "WARNING",
+      link_foto: "", // Dikosongkan, diisi di foto_base64
       foto_base64: base64Image
     };
 
     const { error } = await supabase.from('data_expired').insert([payload]);
     
     document.getElementById("loader").style.display = 'none';
-    if (error) { alert("Error menyimpan ke database: " + error.message); } 
+    if (error) { alert("Error menyimpan: " + error.message); } 
     else { alert("✅ Data tersimpan cepat!"); fetchDashboardData(); }
   }
 
-  // --- LOGIKA SCANNER & KAMERA ---
+  // SCANNER KAMERA LIVE
   async function startScanning() {
     const readerDiv = document.getElementById("reader");
     const stopBtn = document.getElementById("btnStop");
@@ -303,12 +338,7 @@
     stopBtn.style.display = "flex";
 
     if (!html5Qr) { html5Qr = new Html5Qrcode("reader"); }
-    const config = { 
-      fps: 15, 
-      qrbox: { width: 250, height: 180 },
-      aspectRatio: 1.0,
-      videoConstraints: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
-    };
+    const config = { fps: 15, qrbox: { width: 250, height: 180 }, aspectRatio: 1.0, videoConstraints: { facingMode: "environment" } };
 
     try {
       if(html5Qr.isScanning) { await html5Qr.stop(); }
@@ -322,7 +352,7 @@
         (errorMessage) => {}
       );
     } catch (err) {
-      alert("Gagal akses kamera langsung. Silakan gunakan tombol 📂 untuk ambil foto barcode.");
+      alert("Gagal akses kamera langsung. Silakan gunakan tombol 📂 untuk ambil foto barcode dari galeri/kamera HP.");
       stopScanning();
     }
   }
@@ -339,16 +369,19 @@
     }
   }
 
+  // SCANNER FILE FOTO
   document.getElementById('qr-input-file').addEventListener('change', e => {
     if (e.target.files.length == 0) return;
     const scanner = new Html5Qrcode("reader");
     document.getElementById("loader").style.display = 'flex'; 
+    document.getElementById("loader-text").innerText = "Membaca Barcode...";
+    
     scanner.scanFile(e.target.files[0], true)
       .then(t => { document.getElementById("barcode").value = t; document.getElementById("loader").style.display='none'; alert("Barcode terbaca!"); })
-      .catch(err => { document.getElementById("loader").style.display='none'; alert("Gagal baca barcode."); });
+      .catch(err => { document.getElementById("loader").style.display='none'; alert("Gagal baca barcode dari foto. Coba foto yang lebih jelas."); });
   });
 
-  // --- LOGIKA PREVIEW GAMBAR BARANG ---
+  // PREVIEW FOTO BARANG
   function previewImage() {
     const f = document.getElementById("fotoInput").files[0]; if (!f) return;
     const r = new FileReader();

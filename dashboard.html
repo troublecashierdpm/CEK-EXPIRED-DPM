@@ -185,6 +185,75 @@
     .td-mono     { font-family: 'Courier New', monospace; font-size: 11px; color: var(--muted); }
     .td-nama     { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 
+    /* ── DELETE ── */
+    .btn-del-row {
+      background: rgba(239,71,111,0.08); color: var(--danger);
+      border: 1px solid rgba(239,71,111,0.2); border-radius: 7px;
+      width: 30px; height: 30px; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; font-size: 14px;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .btn-del-row:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+    .btn-del-selected {
+      background: rgba(239,71,111,0.1); color: var(--danger);
+      border: 1.5px solid rgba(239,71,111,0.3); border-radius: 10px;
+      padding: 6px 14px; font-size: 12px; font-weight: 700;
+      cursor: pointer; font-family: inherit; display: none;
+      align-items: center; gap: 6px; transition: all 0.15s;
+    }
+    .btn-del-selected:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .btn-del-selected.show  { display: flex; }
+
+    /* Checkbox */
+    .cb-row {
+      width: 16px; height: 16px; cursor: pointer;
+      accent-color: var(--danger);
+    }
+    .cb-all { accent-color: var(--danger); cursor: pointer; }
+    tbody tr.selected-row { background: rgba(239,71,111,0.04) !important; }
+
+    /* ── CONFIRM MODAL ── */
+    .confirm-bg {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+      z-index: 10000; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .confirm-bg.open { display: flex; }
+    .confirm-box {
+      background: #fff; border-radius: 16px; padding: 28px 24px;
+      max-width: 380px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    .confirm-icon  { font-size: 40px; margin-bottom: 12px; }
+    .confirm-title { font-size: 17px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
+    .confirm-msg   { font-size: 13px; color: #64748b; line-height: 1.5; margin-bottom: 22px; }
+    .confirm-btns  { display: flex; gap: 10px; justify-content: center; }
+    .confirm-cancel {
+      flex: 1; padding: 11px; border-radius: 10px; border: 1.5px solid #e2e8f0;
+      background: #f8fafc; color: #64748b; font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+    }
+    .confirm-cancel:hover { background: #e2e8f0; }
+    .confirm-ok {
+      flex: 1; padding: 11px; border-radius: 10px; border: none;
+      background: var(--danger); color: #fff; font-size: 13px; font-weight: 700;
+      cursor: pointer; font-family: inherit; display: flex;
+      align-items: center; justify-content: center; gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .confirm-ok:hover   { opacity: 0.85; }
+    .confirm-ok:disabled { opacity: 0.5; cursor: default; }
+    .confirm-ok .spin-sm {
+      display: none; width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spinning 0.6s linear infinite;
+    }
+    .confirm-ok.deleting .spin-sm { display: inline-block; }
+    .confirm-ok.deleting .ok-txt  { display: none; }
+
     /* ── PAGINATION ── */
     .pagi {
       display: flex; align-items: center; justify-content: flex-end;
@@ -225,6 +294,21 @@
       width: 32px; height: 32px; border-radius: 50%; font-size: 16px;
       cursor: pointer;
     }
+
+    /* ── TOAST ── */
+    .dash-toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: #1e293b; color: #fff;
+      padding: 10px 22px; border-radius: 50px;
+      font-size: 13px; font-weight: 600;
+      z-index: 20000; opacity: 0; pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      white-space: nowrap;
+    }
+    .dash-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .dash-toast.ok  { background: linear-gradient(135deg,#059669,#06d6a0); }
+    .dash-toast.err { background: linear-gradient(135deg,#dc2626,#ef476f); }
 
     /* ── RESPONSIVE ── */
     @media (max-width: 700px) {
@@ -315,6 +399,9 @@
         <option value="dept_asc">Dept A–Z</option>
         <option value="input_date_desc">Input Terbaru</option>
       </select>
+      <button class="btn-del-selected" id="btnDelSelected" onclick="deleteSelected()">
+        🗑️ Hapus Terpilih (<span id="selectedCount">0</span>)
+      </button>
       <span class="count-badge" id="countBadge">— item</span>
     </div>
 
@@ -322,6 +409,7 @@
       <table>
         <thead>
           <tr>
+            <th style="width:36px;"><input type="checkbox" class="cb-all" id="cbAll" onclick="toggleSelectAll(this)"></th>
             <th>Foto</th>
             <th>Dept</th>
             <th>Nama Barang</th>
@@ -332,10 +420,11 @@
             <th>Tgl Expired</th>
             <th>Sisa Hari</th>
             <th>Status</th>
+            <th>Hapus</th>
           </tr>
         </thead>
         <tbody id="tblBody">
-          <tr><td class="tbl-state" colspan="10"><span class="spinner-ring"></span>Memuat data...</td></tr>
+          <tr><td class="tbl-state" colspan="12"><span class="spinner-ring"></span>Memuat data...</td></tr>
         </tbody>
       </table>
     </div>
@@ -343,6 +432,25 @@
     <div class="pagi" id="pagiWrap"></div>
   </div>
 
+</div>
+
+<!-- TOAST -->
+<div class="dash-toast" id="dashToast"></div>
+
+<!-- MODAL KONFIRMASI HAPUS -->
+<div class="confirm-bg" id="confirmBg">
+  <div class="confirm-box">
+    <div class="confirm-icon">🗑️</div>
+    <div class="confirm-title" id="confirmTitle">Hapus Data?</div>
+    <div class="confirm-msg" id="confirmMsg">Data yang dihapus tidak bisa dikembalikan.</div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeConfirm()">Batal</button>
+      <button class="confirm-ok" id="confirmOkBtn" onclick="execDelete()">
+        <span class="spin-sm"></span>
+        <span class="ok-txt">Ya, Hapus</span>
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL FOTO -->
@@ -547,8 +655,12 @@
     var rows  = filtered.slice(start, start + perPage);
     var today = new Date(); today.setHours(0,0,0,0);
 
+    // Reset checkbox all
+    var cbAll = document.getElementById('cbAll');
+    if (cbAll) cbAll.checked = false;
+
     if (rows.length === 0) {
-      body.innerHTML = '<tr><td class="tbl-state" colspan="10">Tidak ada data yang cocok.</td></tr>';
+      body.innerHTML = '<tr><td class="tbl-state" colspan="12">Tidak ada data yang cocok.</td></tr>';
       return;
     }
 
@@ -558,16 +670,14 @@
       var expStr  = r.expired_date || '-';
       var kategori = r.jenis_barang || r.kategori || '';
 
-      /* ── Foto: prioritas base64 > drive link > kosong ── */
+      /* ── Foto ── */
       var rawImg = r.foto_base64 || r.link_foto || r.foto || '';
-      var imgSrc = rawImg.indexOf('drive.google.com') > -1
-        ? driveToImg(rawImg)
-        : rawImg;
+      var imgSrc = rawImg.indexOf('drive.google.com') > -1 ? driveToImg(rawImg) : rawImg;
 
-      /* ── Limit hari dari data_master ── */
+      /* ── Limit hari ── */
       var limitHari = getLimit(r.dept, kategori);
 
-      /* ── Sisa hari & warna ── */
+      /* ── Sisa hari ── */
       var sisaTxt = '-'; var sisaCls = '';
       if (expStr !== '-') {
         var expD = new Date(expStr); expD.setHours(0,0,0,0);
@@ -577,7 +687,6 @@
         } else if (diff === 0) {
           sisaTxt = 'Hari ini!'; sisaCls = 'sisa-near';
         } else if (limitHari > 0 && diff <= limitHari) {
-          // Dalam batas warning sesuai data_master
           sisaTxt = diff + ' hari'; sisaCls = diff <= 7 ? 'sisa-near' : 'sisa-warn';
         } else if (diff <= 7) {
           sisaTxt = diff + ' hari'; sisaCls = 'sisa-near';
@@ -591,8 +700,7 @@
       /* ── Format tanggal ── */
       var fmtDate = function(s) {
         if (!s || s === '-') return '-';
-        var d = new Date(s);
-        if (isNaN(d)) return s;
+        var d = new Date(s); if (isNaN(d)) return s;
         return d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
       };
 
@@ -606,17 +714,19 @@
       /* ── Foto cell ── */
       var imgHtml, fotoAttr;
       if (imgSrc) {
-        // Simpan src asli di data-attr untuk modal, tampilkan thumbnail
-        var safeModalSrc = (r.foto_base64 || driveToImg(r.link_foto || r.foto || '') || imgSrc)
-          .replace(/'/g, '%27');
+        var safeModalSrc = (r.foto_base64 || driveToImg(r.link_foto || r.foto || '') || imgSrc).replace(/'/g,'%27');
         imgHtml  = '<img src="' + imgSrc + '" loading="lazy" onerror="this.parentNode.innerHTML=\'📦\'">';
         fotoAttr = ' onclick="openModal(\'' + safeModalSrc + '\')" style="cursor:pointer;"';
       } else {
-        imgHtml  = '📦';
-        fotoAttr = '';
+        imgHtml = '📦'; fotoAttr = '';
       }
 
-      html += '<tr>'
+      /* ── Nama aman untuk onclick ── */
+      var namaEsc = nama.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      var rowId   = r.id || '';
+
+      html += '<tr id="row-' + rowId + '">'
+        + '<td><input type="checkbox" class="cb-row" value="' + rowId + '" onchange="onCbChange()"></td>'
         + '<td><div class="td-foto-wrap"' + fotoAttr + '>' + imgHtml + '</div></td>'
         + '<td><span class="badge-dept-tbl">' + (r.dept||'-') + '</span></td>'
         + '<td class="td-nama" title="' + nama + '">' + nama + '</td>'
@@ -626,9 +736,10 @@
         + '<td class="td-mono">' + fmtDate(r.input_date) + '</td>'
         + '<td class="td-mono" style="white-space:nowrap;">' + fmtDate(expStr) + '</td>'
         + '<td><span class="' + sisaCls + '">' + sisaTxt + '</span>'
-        + (limitHari > 0 ? '<br><span style="font-size:9px;color:#94a3b8;">limit ' + limitHari + 'h</span>' : '')
+        +   (limitHari > 0 ? '<br><span style="font-size:9px;color:#94a3b8;">limit ' + limitHari + 'h</span>' : '')
         + '</td>'
         + '<td><span class="chip-status ' + remDisp + '">' + remDisp + '</span></td>'
+        + '<td><button class="btn-del-row" onclick="askDelete(' + rowId + ',\'' + namaEsc + '\')" title="Hapus baris ini">🗑️</button></td>'
         + '</tr>';
     });
     body.innerHTML = html;
@@ -665,7 +776,124 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  /* ── MODAL ── */
+  /* ══════════════════════════════════════════
+     DELETE — single row
+  ══════════════════════════════════════════ */
+  var pendingDeleteIds = [];  // id yang akan dihapus
+
+  function askDelete(id, nama) {
+    pendingDeleteIds = [id];
+    document.getElementById('confirmTitle').textContent = 'Hapus Data Ini?';
+    document.getElementById('confirmMsg').innerHTML =
+      '<strong>' + nama + '</strong><br><br>Data yang dihapus tidak bisa dikembalikan.';
+    openConfirm();
+  }
+
+  /* ── DELETE — multi (terpilih) ── */
+  function deleteSelected() {
+    var cbs = document.querySelectorAll('.cb-row:checked');
+    if (cbs.length === 0) return;
+    pendingDeleteIds = [];
+    cbs.forEach(function(cb) { pendingDeleteIds.push(parseInt(cb.value)); });
+
+    document.getElementById('confirmTitle').textContent = 'Hapus ' + cbs.length + ' Data?';
+    document.getElementById('confirmMsg').textContent =
+      cbs.length + ' item yang dipilih akan dihapus permanen dari database.';
+    openConfirm();
+  }
+
+  /* ── CHECKBOX helpers ── */
+  function onCbChange() {
+    var cbs      = document.querySelectorAll('.cb-row');
+    var checked  = document.querySelectorAll('.cb-row:checked');
+    var btn      = document.getElementById('btnDelSelected');
+    var countEl  = document.getElementById('selectedCount');
+    var cbAll    = document.getElementById('cbAll');
+
+    countEl.textContent  = checked.length;
+    cbAll.checked        = checked.length === cbs.length && cbs.length > 0;
+    cbAll.indeterminate  = checked.length > 0 && checked.length < cbs.length;
+
+    if (checked.length > 0) btn.classList.add('show');
+    else                     btn.classList.remove('show');
+
+    // Highlight baris terpilih
+    cbs.forEach(function(cb) {
+      var row = document.getElementById('row-' + cb.value);
+      if (row) row.classList.toggle('selected-row', cb.checked);
+    });
+  }
+
+  function toggleSelectAll(masterCb) {
+    var cbs = document.querySelectorAll('.cb-row');
+    cbs.forEach(function(cb) { cb.checked = masterCb.checked; });
+    onCbChange();
+  }
+
+  /* ── CONFIRM MODAL ── */
+  function openConfirm() {
+    var okBtn = document.getElementById('confirmOkBtn');
+    okBtn.classList.remove('deleting');
+    okBtn.disabled = false;
+    document.getElementById('confirmBg').classList.add('open');
+  }
+
+  function closeConfirm() {
+    document.getElementById('confirmBg').classList.remove('open');
+    pendingDeleteIds = [];
+  }
+
+  /* ── EKSEKUSI HAPUS ── */
+  function execDelete() {
+    if (!pendingDeleteIds.length || !db) return;
+    var okBtn = document.getElementById('confirmOkBtn');
+    okBtn.classList.add('deleting');
+    okBtn.disabled = true;
+
+    // Hapus semua id dalam pendingDeleteIds satu per satu (Supabase JS v2 tidak support .in() delete langsung di semua versi)
+    var promises = pendingDeleteIds.map(function(id) {
+      return db.from('data_expired').delete().eq('id', id);
+    });
+
+    Promise.all(promises).then(function(results) {
+      var errors = results.filter(function(r){ return r.error; });
+      closeConfirm();
+
+      if (errors.length > 0) {
+        showToast('❌ Sebagian gagal dihapus (' + errors.length + ' error)', 'err');
+      } else {
+        var n = pendingDeleteIds.length;
+        showToast('🗑️ ' + n + ' data berhasil dihapus', 'ok');
+      }
+
+      // Hapus dari allData lokal dan re-render tanpa fetch ulang
+      pendingDeleteIds.forEach(function(id) {
+        allData = allData.filter(function(r){ return r.id !== id; });
+      });
+      pendingDeleteIds = [];
+
+      // Reset checkbox state
+      var btn = document.getElementById('btnDelSelected');
+      btn.classList.remove('show');
+      document.getElementById('selectedCount').textContent = '0';
+
+      updateStats();
+      updateDeptChips();
+      applyFilter();
+    });
+  }
+
+  /* ── TOAST NOTIF ── */
+  function showToast(msg, type) {
+    var el = document.getElementById('dashToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'dash-toast show ' + (type || '');
+    clearTimeout(el._t);
+    el._t = setTimeout(function() { el.className = 'dash-toast'; }, 3500);
+  }
+
+  /* ── MODAL FOTO ── */
   function openModal(src) {
     document.getElementById('modalImg').src = src;
     document.getElementById('modalBg').classList.add('open');

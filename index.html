@@ -12,21 +12,64 @@
   <style>
     :root {
       --primary: #4361ee; --primary-soft: #eef2ff; --secondary: #3f37c9;
-      --success: #06d6a0; --danger: #ef476f; --warning: #ffd166;
+      --success: #06d6a0; --danger: #ef476f;
       --bg: #fdfeff; --card-bg: #ffffff; --text-main: #1e293b;
       --text-muted: #64748b; --radius: 18px;
       --shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.05);
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: var(--bg);
+      font-family: 'Plus Jakarta Sans', sans-serif; background-color: var(--bg);
       background-image: radial-gradient(at 0% 0%, rgba(67,97,238,0.03) 0, transparent 50%),
                         radial-gradient(at 50% 0%, rgba(6,214,160,0.03) 0, transparent 50%);
       color: var(--text-main); margin: 0; padding: 12px;
       overflow-x: hidden; min-height: 100vh;
     }
     .container { width: 100%; max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
+
+    /* ── LOGIN SCREEN ── */
+    #loginScreen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 99998; padding: 24px;
+    }
+    .login-box {
+      background: #fff; border-radius: 24px; padding: 36px 28px;
+      box-shadow: 0 20px 60px rgba(67,97,238,0.12);
+      border: 1.5px solid #e8eeff;
+      width: 100%; max-width: 360px; text-align: center;
+    }
+    .login-logo { font-size: 40px; margin-bottom: 8px; }
+    .login-title {
+      font-weight: 800; font-size: 20px; margin-bottom: 4px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .login-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 28px; }
+    .login-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-align: left; display: block; margin-bottom: 8px; }
+    .login-input {
+      width: 100%; padding: 14px 16px; border-radius: 14px;
+      border: 1.5px solid #e2e8f0; background: #f8fafc;
+      font-size: 16px; font-family: inherit; color: var(--text-main);
+      outline: none; text-align: center; letter-spacing: 4px;
+      font-weight: 700; margin-bottom: 16px;
+    }
+    .login-input:focus { border-color: var(--primary); background: #fff; }
+    .login-btn {
+      width: 100%; padding: 14px; border-radius: 14px; border: none;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white; font-size: 15px; font-weight: 800;
+      cursor: pointer; font-family: inherit;
+      box-shadow: 0 8px 20px rgba(67,97,238,0.25);
+    }
+    .login-btn:active { opacity: 0.9; }
+    .login-err {
+      background: #fff0f3; border: 1px solid #fecdd3;
+      border-radius: 10px; padding: 9px 13px; margin-top: 12px;
+      font-size: 12px; font-weight: 600; color: var(--danger);
+      display: none;
+    }
+    .login-err.show { display: block; }
 
     .header-app { text-align: center; margin-bottom: 20px; padding-top: 10px; }
     .header-app h2 {
@@ -36,15 +79,6 @@
     }
     .header-app p { color: var(--text-muted); font-size: 13px; margin-top: 5px; }
 
-    /* Dashboard warning count */
-    #dashboard {
-      background: linear-gradient(135deg, #ff9f1c, #f9844a); color: white;
-      padding: 16px; border-radius: var(--radius); margin-bottom: 20px;
-      display: none; text-align: center; font-weight: 700;
-      box-shadow: 0 10px 20px rgba(255,159,28,0.2);
-    }
-
-    /* Cards */
     .card {
       background: var(--card-bg); padding: 20px; border-radius: var(--radius);
       box-shadow: var(--shadow); margin-bottom: 16px;
@@ -65,7 +99,6 @@
     }
     .card-title::after { content: ""; height: 1px; flex: 1; background: #f1f5f9; }
 
-    /* Dept hint error */
     .dept-hint {
       display: none; background: #fff0f3; border: 1px solid #fecdd3;
       border-radius: 10px; padding: 9px 13px; margin-top: -8px; margin-bottom: 10px;
@@ -73,7 +106,6 @@
     }
     .dept-hint.show { display: block; }
 
-    /* Form elements */
     label {
       font-weight: 600; font-size: 12px; color: var(--text-muted);
       margin-bottom: 6px; display: block; margin-left: 4px;
@@ -86,7 +118,6 @@
     }
     input:focus, select:focus { border-color: var(--primary); background: #fff; }
 
-    /* Dept buttons */
     .dept-group { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 10px; }
     .btn-dept {
       padding: 12px 2px; border: 1.5px solid #f1f5f9; background: #f8fafc;
@@ -98,7 +129,6 @@
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-    /* Buttons */
     .main-btn {
       width: 100%; padding: 14px; border-radius: 14px; border: none;
       font-weight: 700; font-size: 14px; cursor: pointer;
@@ -111,16 +141,16 @@
       margin-top: 5px; font-size: 16px; box-shadow: 0 10px 20px rgba(6,214,160,0.2);
     }
     .btn-photo { background: #f1f5f9; color: var(--text-main); border: 1px solid #e2e8f0; margin-bottom: 10px; }
-    .btn-view-toggle { background: #fff; border: 1.5px solid var(--primary); color: var(--primary); margin: 20px 0; }
 
-    /* Scanner */
+    /* ── SCANNER ──
+       iOS Safari wajib pakai input[type=file] capture=environment,
+       tidak bisa pakai getUserMedia via html5-qrcode secara reliable.
+       Solusi: tombol 📷 di iOS langsung trigger input file dengan capture,
+       bukan html5Qrcode.start(). Android tetap pakai html5Qrcode. */
     #reader { width: 100%; border-radius: 16px; overflow: hidden; display: none; margin-bottom: 15px; border: 3px solid var(--primary); }
-
-    /* Foto preview */
     #previewContainer { margin-top: 10px; position: relative; border-radius: 12px; overflow: hidden; border: 2px solid #f1f5f9; }
     #preview { width: 100%; display: block; }
 
-    /* Loader */
     #loader {
       display: none; position: fixed; inset: 0;
       background: rgba(255,255,255,0.9); z-index: 9999;
@@ -133,7 +163,6 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Toast */
     #toast {
       position: fixed; bottom: 30px; left: 50%;
       transform: translateX(-50%) translateY(20px);
@@ -148,43 +177,6 @@
     #toast.t-warning { background: linear-gradient(135deg,#d97706,#f59e0b); }
     #toast.t-error   { background: linear-gradient(135deg,#dc2626,#ef476f); }
 
-    /* Warning list */
-    #warningListWrapper { display: none; margin-top: 20px; padding: 15px 5px; border-top: 2px dashed #cbd5e1; }
-    .warning-item {
-      display: flex; gap: 12px; padding: 12px; background: #fff;
-      border-radius: 15px; margin-bottom: 12px; border: 1px solid #f1f5f9;
-      box-shadow: var(--shadow); align-items: center; position: relative;
-    }
-    .warning-img {
-      width: 65px; height: 65px; border-radius: 12px; object-fit: cover;
-      background: #f1f5f9; border: 1px solid #e2e8f0; cursor: pointer; flex-shrink: 0;
-    }
-    .warning-info { flex: 1; min-width: 0; }
-    .warning-info h4 { margin: 0; font-size: 13px; line-height: 1.3; width: 85%; }
-    .warning-info p { margin: 3px 0; font-size: 11px; color: var(--text-muted); }
-    .btn-delete-item {
-      position: absolute; top: 10px; right: 10px; background: #fff0f0;
-      color: var(--danger); border: none; width: 30px; height: 30px;
-      border-radius: 8px; display: flex; align-items: center; justify-content: center;
-      font-size: 14px; cursor: pointer;
-    }
-    .badge-dept {
-      background: var(--primary-soft); color: var(--primary); padding: 2px 6px;
-      border-radius: 4px; font-size: 9px; font-weight: 800;
-      margin-bottom: 4px; display: inline-block;
-    }
-    .filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-    .filter-row select { margin-bottom: 0; flex: 1; font-size: 12px; padding: 9px 12px; }
-    .filter-count {
-      background: var(--primary-soft); color: var(--primary);
-      font-size: 11px; font-weight: 800; padding: 4px 10px;
-      border-radius: 20px; white-space: nowrap; display: none;
-    }
-    .list-empty { text-align: center; padding: 30px 20px; color: var(--text-muted); font-size: 13px; }
-    .list-loading { display: flex; align-items: center; gap: 10px; padding: 20px; color: var(--primary); font-size: 13px; font-weight: 600; }
-    .list-loading .spinner { width: 22px; height: 22px; border-width: 3px; flex-shrink: 0; }
-
-    /* Modal */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.9); backdrop-filter: blur(5px);
@@ -200,17 +192,28 @@
 </head>
 
 <body>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">🏪</div>
+    <div class="login-title">Inventory Check</div>
+    <div class="login-sub">AEON Store &bull; DP Mall Semarang</div>
+    <label class="login-label">Masukkan NIK Anda</label>
+    <input type="number" id="nikInput" class="login-input" placeholder="· · · · · · ·"
+      onkeydown="if(event.key==='Enter') doLogin()">
+    <button class="login-btn" onclick="doLogin()">Masuk →</button>
+    <div class="login-err" id="loginErr">❌ NIK tidak dikenali. Coba lagi.</div>
+  </div>
+</div>
+
 <div id="loader">
   <div class="spinner"></div>
   <p style="margin-top:15px;font-weight:700;color:var(--primary)" id="loaderText">Memproses...</p>
 </div>
 <div id="toast"></div>
 
-<div class="container">
-
-  <div id="dashboard">
-    <span id="warningCount">0</span> ITEM WARNING TERDETEKSI
-  </div>
+<div class="container" id="mainApp" style="display:none;">
 
   <div class="header-app">
     <h2>Inventory Check</h2>
@@ -220,8 +223,7 @@
       margin-top: 10px; padding: 8px 18px;
       background: var(--primary-soft); color: var(--primary);
       border-radius: 50px; font-size: 12px; font-weight: 700;
-      text-decoration: none; border: 1.5px solid #c7d2fe;
-      transition: background 0.2s;">
+      text-decoration: none; border: 1.5px solid #c7d2fe;">
       📊 Lihat Dashboard
     </a>
   </div>
@@ -263,17 +265,25 @@
     <label>Barcode / SKU</label>
     <div style="display:flex;gap:8px;margin-bottom:5px;">
       <input type="text" id="barcode" placeholder="Scan/Ketik" style="margin-bottom:0;">
-      <button type="button" class="main-btn btn-scan" style="width:60px;padding:0;flex-shrink:0;" onclick="startScanning()" title="Scan Langsung">📷</button>
-      <button type="button" class="main-btn" style="width:60px;padding:0;background:#e2e8f0;flex-shrink:0;" onclick="document.getElementById('qrFileInput').click()" title="Scan dari Foto">📂</button>
+      <button type="button" class="main-btn btn-scan" style="width:60px;padding:0;flex-shrink:0;"
+        onclick="startScanning()" title="Scan Barcode">📷</button>
+      <button type="button" class="main-btn" style="width:60px;padding:0;background:#e2e8f0;flex-shrink:0;"
+        onclick="document.getElementById('qrFileInput').click()" title="Scan dari Foto">📂</button>
     </div>
-    <div style="background:#fff9db;border-left:4px solid #fcc419;padding:8px 12px;border-radius:8px;margin-bottom:15px;margin-top:8px;">
-      <p style="margin:0;font-size:10px;color:#856404;line-height:1.4;">
-        <strong>💡 Tips:</strong> Jika 📷 tidak bisa, gunakan 📂 lalu ambil foto barcode-nya.
-      </p>
+
+    <!-- Tips: muncul berbeda untuk iOS vs Android -->
+    <div id="tipBox" style="background:#fff9db;border-left:4px solid #fcc419;padding:8px 12px;border-radius:8px;margin-bottom:15px;margin-top:8px;">
+      <p id="tipText" style="margin:0;font-size:10px;color:#856404;line-height:1.5;"></p>
     </div>
-    <input type="file" id="qrFileInput" accept="image/*" style="display:none">
+
+    <!-- iOS: pakai 2 input file terpisah (satu capture, satu tidak) -->
+    <input type="file" id="qrFileInput"   accept="image/*" style="display:none">
+    <input type="file" id="iosScanInput"  accept="image/*" capture="environment" style="display:none">
+
     <div id="reader"></div>
-    <button id="btnStop" type="button" class="main-btn" style="display:none;background:var(--danger);color:white;margin-bottom:10px;" onclick="stopScanning()">❌ Hentikan Scanner</button>
+    <button id="btnStop" type="button" class="main-btn"
+      style="display:none;background:var(--danger);color:white;margin-bottom:10px;"
+      onclick="stopScanning()">❌ Hentikan Scanner</button>
 
     <label>Deskripsi Nama Barang</label>
     <input type="text" id="deskripsi" placeholder="Masukkan nama produk lengkap">
@@ -301,37 +311,13 @@
     <input type="file" id="fotoInput" accept="image/*" style="display:none" onchange="previewImage()">
     <div id="previewContainer" style="display:none;">
       <img id="preview">
-      <button onclick="removeImage()" style="position:absolute;top:8px;right:8px;background:var(--danger);color:white;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">✕</button>
+      <button onclick="removeImage()"
+        style="position:absolute;top:8px;right:8px;background:var(--danger);
+        color:white;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">✕</button>
     </div>
   </div>
 
-  <button type="button" class="main-btn btn-save" id="btnSimpan" onclick="saveData()">💾 SIMPAN KE DATABASE</button>
-  <button type="button" class="main-btn btn-view-toggle" id="btnToggle" onclick="toggleWarningList()">📋 TAMPILKAN LIST WARNING</button>
-
-  <!-- WARNING LIST -->
-  <div id="warningListWrapper">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:0 5px;">
-      <h3 style="margin:0;font-size:16px;font-weight:800;color:var(--text-main);">Item Warning List</h3>
-      <button onclick="toggleWarningList()" style="border:none;background:none;color:var(--text-muted);font-size:12px;font-weight:bold;cursor:pointer;">Tutup ✕</button>
-    </div>
-    <div style="padding:0 5px 15px 5px;">
-      <label style="font-size:11px;margin-bottom:6px;">Filter Departemen:</label>
-      <div class="filter-row">
-        <select id="filterWarningDept" onchange="loadWarningData()">
-          <option value="ALL">SEMUA DEPARTEMEN</option>
-          <option value="GROCERY">GROCERY</option>
-          <option value="DND">DND</option>
-          <option value="GMS">GMS</option>
-          <option value="HBC">HBC</option>
-          <option value="DELSUSBAK">DELSUSBAK</option>
-          <option value="PRODUCE">PRODUCE</option>
-          <option value="NONFOOD">NONFOOD</option>
-        </select>
-        <span class="filter-count" id="filterCount">0 item</span>
-      </div>
-    </div>
-    <div id="listContent"></div>
-  </div>
+  <button type="button" class="main-btn btn-save" onclick="saveData()">💾 SIMPAN KE DATABASE</button>
 
   <!-- MODAL FOTO -->
   <div id="imageModal" class="modal-overlay" onclick="closePreview()">
@@ -347,45 +333,37 @@
 </div>
 
 <script>
-  // =====================================================
-  // KONFIGURASI — ganti hanya 2 baris ini jika perlu
-  // =====================================================
   var SUPA_URL = 'https://tplmwztdiccknphhxbqo.supabase.co';
   var SUPA_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';
 
-  // =====================================================
-  // STATE GLOBAL — pakai var agar tidak tabrakan dengan
-  // variabel global supabase dari CDN
-  // =====================================================
-  var db           = null;   // instance supabase client (nama 'db', bukan 'supabase')
+  // NIK yang diizinkan (tanpa password)
+  var VALID_NIKS = ['2510009', '1612004', '2410035'];
+
+  var db           = null;
   var selectedDept = "";
   var base64Image  = "";
   var html5Qr      = null;
-  var isListVisible = false;
-  var isLoadingList = false;
+  var isIOS        = false;
 
-  // Data master cadangan (fallback jika Supabase lambat/gagal)
   var masterData = [
-    { dept: "HBC",      kategori: "SKINCARE",    limit: 90  },
-    { dept: "HBC",      kategori: "BODYCARE",    limit: 90  },
-    { dept: "HBC",      kategori: "COSMETIC",    limit: 90  },
-    { dept: "GROCERY",  kategori: "FOOD",        limit: 60  },
-    { dept: "GROCERY",  kategori: "NONFOOD",     limit: 60  },
-    { dept: "DND",      kategori: "BEVERAGE",    limit: 60  },
-    { dept: "DND",      kategori: "DAIRY",       limit: 30  },
-    { dept: "GMS",      kategori: "KITCHEN",     limit: 120 },
-    { dept: "PRODUCE",  kategori: "FRUIT",       limit: 3   },
-    { dept: "PRODUCE",  kategori: "VEGETABLE",   limit: 3   },
-    { dept: "NONFOOD",  kategori: "TOYS",        limit: 120 },
-    { dept: "NONFOOD",  kategori: "STATIONERY",  limit: 120 },
-    { dept: "DELSUSBAK",kategori: "DELICA",      limit: 1   },
-    { dept: "DELSUSBAK",kategori: "SUSHI",       limit: 1   },
-    { dept: "DELSUSBAK",kategori: "BAKERY",      limit: 3   }
+    { dept: "HBC",       kategori: "SKINCARE",   limit: 90  },
+    { dept: "HBC",       kategori: "BODYCARE",   limit: 90  },
+    { dept: "HBC",       kategori: "COSMETIC",   limit: 90  },
+    { dept: "GROCERY",   kategori: "FOOD",       limit: 60  },
+    { dept: "GROCERY",   kategori: "NONFOOD",    limit: 60  },
+    { dept: "DND",       kategori: "BEVERAGE",   limit: 60  },
+    { dept: "DND",       kategori: "DAIRY",      limit: 30  },
+    { dept: "GMS",       kategori: "KITCHEN",    limit: 120 },
+    { dept: "PRODUCE",   kategori: "FRUIT",      limit: 3   },
+    { dept: "PRODUCE",   kategori: "VEGETABLE",  limit: 3   },
+    { dept: "NONFOOD",   kategori: "TOYS",       limit: 120 },
+    { dept: "NONFOOD",   kategori: "STATIONERY", limit: 120 },
+    { dept: "DELSUSBAK", kategori: "DELICA",     limit: 1   },
+    { dept: "DELSUSBAK", kategori: "SUSHI",      limit: 1   },
+    { dept: "DELSUSBAK", kategori: "BAKERY",     limit: 3   }
   ];
 
-  // =====================================================
-  // HELPER: Toast notifikasi
-  // =====================================================
+  // ── TOAST ──
   function showToast(msg, type, dur) {
     var t = document.getElementById('toast');
     t.textContent = msg;
@@ -394,306 +372,115 @@
     t._tmr = setTimeout(function() { t.className = ''; }, dur || 3000);
   }
 
-  // =====================================================
-  // INIT — jalan saat halaman dibuka
-  // =====================================================
-  window.onload = function() {
-    // Buat client dengan nama 'db' agar tidak bentrok dengan global 'supabase'
-    if (window.supabase && window.supabase.createClient) {
-      db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-    }
-
-    if (db) {
-      // Tarik data master dari Supabase
-      db.from('data_master').select('*').then(function(res) {
-        if (!res.error && res.data && res.data.length > 0) {
-          masterData = res.data;
-        }
-      });
-      refreshWarningCount();
-    }
-
-    // Listener scan dari file
-    document.getElementById('qrFileInput').addEventListener('change', function(e) {
-      if (!e.target.files.length) return;
-      var scanner = new Html5Qrcode("reader");
-      showLoader("Membaca Barcode...");
-      scanner.scanFile(e.target.files[0], true)
-        .then(function(text) {
-          document.getElementById("barcode").value = text;
-          hideLoader();
-          showToast('✅ Barcode terbaca: ' + text, 't-success');
-        })
-        .catch(function() {
-          hideLoader();
-          showToast('❌ Gagal membaca barcode dari gambar.', 't-error');
-        });
-    });
-  };
-
-  // =====================================================
-  // LOADER helper
-  // =====================================================
+  // ── LOADER ──
   function showLoader(msg) {
     document.getElementById("loader").style.display = 'flex';
     document.getElementById("loaderText").innerText = msg || 'Memproses...';
   }
-  function hideLoader() {
-    document.getElementById("loader").style.display = 'none';
-  }
+  function hideLoader() { document.getElementById("loader").style.display = 'none'; }
 
-  // =====================================================
-  // 1. PILIH DEPARTEMENT
-  // =====================================================
-  function selectDept(dept, el) {
-    selectedDept = dept;
-
-    // Hapus active dari semua tombol dept
-    var btns = document.querySelectorAll('.btn-dept');
-    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
-    if (el) el.classList.add('active');
-
-    // Reset error state
-    document.getElementById('cardDept').classList.remove('dept-error');
-    document.getElementById('deptHint').classList.remove('show');
-
-    // Isi dropdown kategori
-    var katSelect = document.getElementById("kategori");
-    katSelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
-    for (var j = 0; j < masterData.length; j++) {
-      if (masterData[j].dept === dept) {
-        katSelect.innerHTML += '<option value="' + masterData[j].kategori + '">' + masterData[j].kategori + '</option>';
-      }
+  // ══════════════════════════════════════
+  // LOGIN
+  // ══════════════════════════════════════
+  function doLogin() {
+    var nik = String(document.getElementById('nikInput').value).trim();
+    var errEl = document.getElementById('loginErr');
+    if (VALID_NIKS.indexOf(nik) > -1) {
+      // Simpan sesi di sessionStorage agar refresh tidak logout
+      sessionStorage.setItem('nik_auth', nik);
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = '';
+    } else {
+      errEl.classList.add('show');
+      document.getElementById('nikInput').value = '';
+      setTimeout(function() { errEl.classList.remove('show'); }, 3000);
     }
-    katSelect.disabled = false;
-
-    // Update warning count di dashboard (global, tidak filter per dept)
-    if (db) refreshWarningCount();
   }
 
-  // =====================================================
-  // 2. REFRESH JUMLAH WARNING DI DASHBOARD
-  // =====================================================
-  function refreshWarningCount() {
-    if (!db) return;
-    db.from('data_expired')
-      .select('*', { count: 'exact', head: true })
-      .eq('remarks', 'WARNING')
-      .then(function(res) {
-        if (!res.error) {
-          var c = res.count || 0;
-          document.getElementById("warningCount").innerText = c;
-          document.getElementById("dashboard").style.display = c > 0 ? 'block' : 'none';
-        }
+  // ══════════════════════════════════════
+  // INIT
+  // ══════════════════════════════════════
+  window.onload = function() {
+    // Deteksi iOS (iPhone / iPad)
+    isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // Cek sesi login
+    if (sessionStorage.getItem('nik_auth')) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = '';
+    }
+
+    // Teks tips scanner sesuai platform
+    document.getElementById('tipText').innerHTML = isIOS
+      ? '<strong>📱 iOS:</strong> Tombol 📷 akan membuka kamera langsung untuk scan barcode. Arahkan ke barcode lalu ambil foto.'
+      : '<strong>💡 Tips:</strong> Gunakan 📷 untuk scan live, atau 📂 untuk ambil foto barcode dari galeri.';
+
+    // Supabase
+    if (window.supabase && window.supabase.createClient) {
+      db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    }
+    if (db) {
+      db.from('data_master').select('*').then(function(res) {
+        if (!res.error && res.data && res.data.length > 0) masterData = res.data;
+      });
+    }
+
+    // Listener: scan dari file (galeri/foto) — dipakai Android & iOS
+    document.getElementById('qrFileInput').addEventListener('change', function(e) {
+      if (!e.target.files.length) return;
+      scanImageFile(e.target.files[0]);
+    });
+
+    // Listener: iOS kamera — ambil foto lalu scan dengan Html5Qrcode.scanFile
+    document.getElementById('iosScanInput').addEventListener('change', function(e) {
+      if (!e.target.files.length) return;
+      scanImageFile(e.target.files[0]);
+      // Reset value agar bisa trigger ulang
+      this.value = '';
+    });
+  };
+
+  // ── Scan file gambar (dipakai keduanya) ──
+  function scanImageFile(file) {
+    showLoader("Membaca Barcode...");
+    var scanner = new Html5Qrcode("reader");
+    scanner.scanFile(file, true)
+      .then(function(text) {
+        document.getElementById("barcode").value = text;
+        hideLoader();
+        showToast('✅ Barcode terbaca: ' + text, 't-success');
+      })
+      .catch(function() {
+        hideLoader();
+        showToast('❌ Barcode tidak terbaca. Coba foto lebih dekat & terang.', 't-error', 4000);
       });
   }
 
-  // =====================================================
-  // 3. TOGGLE TAMPIL / SEMBUNYI LIST WARNING
-  // =====================================================
-  function toggleWarningList() {
-    var wrapper = document.getElementById("warningListWrapper");
-    var btn     = document.getElementById("btnToggle");
-    isListVisible = !isListVisible;
-
-    if (isListVisible) {
-      wrapper.style.display = "block";
-      btn.innerText = "🔼 SEMBUNYIKAN LIST";
-      loadWarningData();
-      setTimeout(function() { wrapper.scrollIntoView({ behavior: 'smooth' }); }, 300);
-    } else {
-      wrapper.style.display = "none";
-      btn.innerText = "📋 TAMPILKAN LIST WARNING";
-    }
-  }
-
-  // =====================================================
-  // 4. LOAD WARNING LIST DARI SUPABASE
-  // =====================================================
-  function loadWarningData() {
-    if (isLoadingList) return;
-    isLoadingList = true;
-
-    var container  = document.getElementById("listContent");
-    var countBadge = document.getElementById("filterCount");
-    var filterDept = document.getElementById("filterWarningDept").value;
-
-    container.innerHTML = '<div class="list-loading"><div class="spinner"></div>Memuat data ' + (filterDept === 'ALL' ? 'semua dept' : filterDept) + '...</div>';
-    countBadge.style.display = 'none';
-
-    if (!db) {
-      container.innerHTML = '<div class="list-empty">⚠️ Koneksi Supabase tidak tersedia.</div>';
-      isLoadingList = false;
-      return;
-    }
-
-    // Build query — filter dept hanya jika bukan ALL
-    var query = db.from('data_expired')
-      .select('*')
-      .eq('remarks', 'WARNING')
-      .order('expired_date', { ascending: true });
-
-    if (filterDept !== 'ALL') {
-      query = query.eq('dept', filterDept);
-    }
-
-    query.then(function(res) {
-      isLoadingList = false;
-
-      if (res.error) {
-        container.innerHTML = '<div class="list-empty" style="color:var(--danger)">❌ Gagal menarik data.<br><small>' + res.error.message + '</small></div>';
-        return;
-      }
-
-      var data  = res.data || [];
-      var total = data.length;
-
-      countBadge.textContent  = total + ' item';
-      countBadge.style.display = total > 0 ? 'inline-block' : 'none';
-
-      if (total === 0) {
-        var label = filterDept === 'ALL' ? 'semua departemen' : filterDept;
-        container.innerHTML = '<div class="list-empty">✅ Tidak ada item warning untuk <strong>' + label + '</strong>.<br>Semua barang aman!</div>';
-        return;
-      }
-
-      var html = '';
-      for (var i = 0; i < data.length; i++) {
-        var item       = data[i];
-        var nama       = item.deskripsi_barang || item.deskripsi || '-';
-        var expDate    = item.expired_date     || item.expired    || '-';
-        var gondola    = item.gondola          || '-';
-        var selving    = item.selving          || '-';
-        var imgSrc     = item.foto_base64      || item.link_foto  || item.foto || '';
-
-        // Hitung sisa hari
-        var sisaLabel = '';
-        if (expDate !== '-') {
-          var today  = new Date(); today.setHours(0,0,0,0);
-          var expObj = new Date(expDate); expObj.setHours(0,0,0,0);
-          var diff   = Math.ceil((expObj - today) / 86400000);
-          if      (diff < 0)  sisaLabel = '<span style="color:#dc2626;font-size:10px;font-weight:800;">(EXPIRED ' + Math.abs(diff) + 'h lalu)</span>';
-          else if (diff === 0) sisaLabel = '<span style="color:#dc2626;font-size:10px;font-weight:800;">(HARI INI!)</span>';
-          else                 sisaLabel = '<span style="color:#d97706;font-size:10px;font-weight:700;">(' + diff + ' hari lagi)</span>';
-        }
-
-        // Escape karakter kutip di nama agar onclick tidak error
-        var namaEsc = nama.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-
-        var imgTag = imgSrc
-          ? '<img src="' + imgSrc + '" class="warning-img" onclick="openPreview(\'' + imgSrc + '\')" loading="lazy">'
-          : '<div class="warning-img" style="display:flex;align-items:center;justify-content:center;font-size:24px;">📦</div>';
-
-        html += '<div class="warning-item">'
-          + imgTag
-          + '<div class="warning-info">'
-          +   '<span class="badge-dept">' + (item.dept || '-') + '</span>'
-          +   '<h4>' + nama + '</h4>'
-          +   '<p>📍 <b>' + gondola + '-' + selving + '</b> | Exp: <span style="color:var(--danger);font-weight:800;">' + expDate + '</span> ' + sisaLabel + '</p>'
-          +   '<p>SKU: ' + (item.barcode || '-') + ' | Qty: ' + (item.qty || '-') + '</p>'
-          + '</div>'
-          + '<button type="button" class="btn-delete-item" onclick="confirmDelete(' + item.id + ',\'' + namaEsc + '\')">🗑️</button>'
-          + '</div>';
-      }
-      container.innerHTML = html;
-    });
-  }
-
-  // =====================================================
-  // 5. SIMPAN DATA KE SUPABASE
-  // =====================================================
-  function saveData() {
-    var katValue = document.getElementById("kategori").value;
-    var expValue = document.getElementById("expiredDate").value;
-
-    // Validasi dept — tampilkan error visual, bukan alert
-    if (!selectedDept) {
-      document.getElementById('cardDept').classList.add('dept-error');
-      document.getElementById('deptHint').classList.add('show');
-      document.getElementById('cardDept').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      showToast('⚠️ Pilih Departement dahulu!', 't-error');
-      return;
-    }
-    if (!katValue) { showToast('⚠️ Pilih Kategori Produk!', 't-error'); document.getElementById('kategori').focus(); return; }
-    if (!expValue) { showToast('⚠️ Isi Tanggal Kadaluarsa!', 't-error'); document.getElementById('expiredDate').focus(); return; }
-
-    if (!db) { showToast('❌ Koneksi database tidak tersedia.', 't-error'); return; }
-
-    showLoader("Menyimpan Data...");
-
-    // Hitung remarks
-    var masterObj = null;
-    for (var i = 0; i < masterData.length; i++) {
-      if (masterData[i].dept === selectedDept && masterData[i].kategori === katValue) {
-        masterObj = masterData[i]; break;
-      }
-    }
-    var limitHari = masterObj && masterObj.limit ? parseInt(masterObj.limit) : 0;
-    var today     = new Date(); today.setHours(0,0,0,0);
-    var expDate   = new Date(expValue); expDate.setHours(0,0,0,0);
-    var diffDays  = Math.ceil((expDate - today) / 86400000);
-    var remarks   = diffDays <= limitHari ? "WARNING" : "AMAN";
-
-    var payload = {
-      dept:            selectedDept,
-      gondola:         document.getElementById("gondola").value,
-      selving:         document.getElementById("selving").value,
-      jenis_barang:    katValue,
-      barcode:         document.getElementById("barcode").value,
-      deskripsi_barang:document.getElementById("deskripsi").value,
-      qty:             parseInt(document.getElementById("qty").value) || 1,
-      input_date:      new Date().toISOString().split('T')[0],
-      expired_date:    expValue,
-      remarks:         remarks,
-      foto_base64:     base64Image
-    };
-
-    db.from('data_expired').insert([payload]).then(function(res) {
-      hideLoader();
-      if (res.error) {
-        showToast('❌ Gagal simpan: ' + res.error.message, 't-error', 5000);
-        return;
-      }
-      if (remarks === "WARNING") showToast('⚠️ Disimpan — Status WARNING!', 't-warning', 4000);
-      else                       showToast('✅ Disimpan — Status AMAN', 't-success');
-
-      refreshWarningCount();
-      if (isListVisible) loadWarningData();
-
-      // Reset field (dept & lokasi tetap untuk input cepat)
-      document.getElementById("barcode").value    = "";
-      document.getElementById("deskripsi").value  = "";
-      document.getElementById("qty").value        = "1";
-      document.getElementById("expiredDate").value = "";
-      removeImage();
-    });
-  }
-
-  // =====================================================
-  // 6. HAPUS DATA (by id — lebih aman dari barcode duplikat)
-  // =====================================================
-  function confirmDelete(id, desc) {
-    if (!confirm('Hapus data "' + desc + '" dari database?')) return;
-    showLoader("Menghapus Data...");
-    db.from('data_expired').delete().eq('id', id).then(function(res) {
-      hideLoader();
-      if (res.error) { showToast('❌ Gagal hapus: ' + res.error.message, 't-error'); return; }
-      showToast('🗑️ Data berhasil dihapus', 't-success');
-      loadWarningData();
-      refreshWarningCount();
-    });
-  }
-
-  // =====================================================
-  // SCANNER LIVE
-  // =====================================================
+  // ══════════════════════════════════════
+  // SCANNER
+  // iOS  → trigger input[capture=environment] → user foto → scanFile()
+  // Android → html5Qrcode live camera
+  // ══════════════════════════════════════
   function startScanning() {
+    if (isIOS) {
+      // iOS tidak support getUserMedia via html5-qrcode dengan baik
+      // Gunakan input[type=file capture=environment] → ambil foto → scanFile
+      document.getElementById('iosScanInput').click();
+      return;
+    }
+
+    // Android: live scanner
     document.getElementById("reader").style.display = "block";
     document.getElementById("btnStop").style.display = "flex";
     if (!html5Qr) html5Qr = new Html5Qrcode("reader");
 
-    var cfg = { fps: 15, qrbox: { width: 250, height: 180 }, aspectRatio: 1.0,
-                videoConstraints: { facingMode: "environment" } };
+    var cfg = {
+      fps: 15,
+      qrbox: { width: 250, height: 180 },
+      aspectRatio: 1.0,
+      videoConstraints: { facingMode: "environment" }
+    };
     if (html5Qr.isScanning) { html5Qr.stop().catch(function(){}); }
 
     html5Qr.start({ facingMode: "environment" }, cfg,
@@ -712,27 +499,105 @@
 
   function stopScanning() {
     if (html5Qr) {
-      html5Qr.stop()
-        .catch(function(){})
-        .finally(function() {
-          document.getElementById("reader").style.display  = "none";
-          document.getElementById("btnStop").style.display = "none";
-        });
+      html5Qr.stop().catch(function(){}).finally(function() {
+        document.getElementById("reader").style.display  = "none";
+        document.getElementById("btnStop").style.display = "none";
+      });
     }
   }
 
-  // =====================================================
-  // FOTO BARANG
-  // =====================================================
+  // ══════════════════════════════════════
+  // PILIH DEPT
+  // ══════════════════════════════════════
+  function selectDept(dept, el) {
+    selectedDept = dept;
+    var btns = document.querySelectorAll('.btn-dept');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+    if (el) el.classList.add('active');
+    document.getElementById('cardDept').classList.remove('dept-error');
+    document.getElementById('deptHint').classList.remove('show');
+
+    var katSelect = document.getElementById("kategori");
+    katSelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+    for (var j = 0; j < masterData.length; j++) {
+      if (masterData[j].dept === dept) {
+        katSelect.innerHTML += '<option value="' + masterData[j].kategori + '">' + masterData[j].kategori + '</option>';
+      }
+    }
+    katSelect.disabled = false;
+  }
+
+  // ══════════════════════════════════════
+  // SIMPAN DATA
+  // ══════════════════════════════════════
+  function saveData() {
+    var katValue = document.getElementById("kategori").value;
+    var expValue = document.getElementById("expiredDate").value;
+
+    if (!selectedDept) {
+      document.getElementById('cardDept').classList.add('dept-error');
+      document.getElementById('deptHint').classList.add('show');
+      document.getElementById('cardDept').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast('⚠️ Pilih Departement dahulu!', 't-error');
+      return;
+    }
+    if (!katValue) { showToast('⚠️ Pilih Kategori Produk!', 't-error'); return; }
+    if (!expValue) { showToast('⚠️ Isi Tanggal Kadaluarsa!', 't-error'); return; }
+    if (!db)       { showToast('❌ Koneksi database tidak tersedia.', 't-error'); return; }
+
+    showLoader("Menyimpan Data...");
+
+    var masterObj = null;
+    for (var i = 0; i < masterData.length; i++) {
+      if (masterData[i].dept === selectedDept && masterData[i].kategori === katValue) {
+        masterObj = masterData[i]; break;
+      }
+    }
+    var limitHari = masterObj && masterObj.limit ? parseInt(masterObj.limit) : 0;
+    var today     = new Date(); today.setHours(0,0,0,0);
+    var expDate   = new Date(expValue); expDate.setHours(0,0,0,0);
+    var diffDays  = Math.ceil((expDate - today) / 86400000);
+    var remarks   = diffDays <= limitHari ? "WARNING" : "AMAN";
+
+    var payload = {
+      dept:             selectedDept,
+      gondola:          document.getElementById("gondola").value,
+      selving:          document.getElementById("selving").value,
+      jenis_barang:     katValue,
+      barcode:          document.getElementById("barcode").value,
+      deskripsi_barang: document.getElementById("deskripsi").value,
+      qty:              parseInt(document.getElementById("qty").value) || 1,
+      input_date:       new Date().toISOString().split('T')[0],
+      expired_date:     expValue,
+      remarks:          remarks,
+      foto_base64:      base64Image
+    };
+
+    db.from('data_expired').insert([payload]).then(function(res) {
+      hideLoader();
+      if (res.error) { showToast('❌ Gagal simpan: ' + res.error.message, 't-error', 5000); return; }
+
+      if (remarks === "WARNING") showToast('⚠️ Disimpan — Status WARNING!', 't-warning', 4000);
+      else                       showToast('✅ Disimpan — Status AMAN', 't-success');
+
+      document.getElementById("barcode").value     = "";
+      document.getElementById("deskripsi").value   = "";
+      document.getElementById("qty").value         = "1";
+      document.getElementById("expiredDate").value = "";
+      removeImage();
+    });
+  }
+
+  // ══════════════════════════════════════
+  // FOTO
+  // ══════════════════════════════════════
   function openCamera() {
     var f = document.getElementById("fotoInput");
-    f.setAttribute('capture', 'environment');
-    f.click();
+    f.setAttribute('capture', 'environment'); f.click();
   }
   function openGallery() {
     var f = document.getElementById("fotoInput");
-    f.removeAttribute('capture');
-    f.click();
+    f.removeAttribute('capture'); f.click();
   }
   function previewImage() {
     var file = document.getElementById("fotoInput").files[0];
@@ -760,9 +625,9 @@
     document.getElementById("previewContainer").style.display = 'none';
   }
 
-  // =====================================================
-  // MODAL PREVIEW FOTO
-  // =====================================================
+  // ══════════════════════════════════════
+  // MODAL
+  // ══════════════════════════════════════
   function openPreview(src) {
     document.getElementById("modalImg").src = src;
     document.getElementById("imageModal").style.display = "flex";

@@ -374,6 +374,9 @@
   </div>
 </div>
 
+<!-- DASHBOARD CONTENT (tersembunyi sampai login) -->
+<div id="dashContent">
+
 <!-- TOPBAR -->
 <header class="topbar">
   <div class="topbar-left">
@@ -485,6 +488,8 @@
 
 </div>
 
+</div><!-- /dashContent -->
+
 <!-- TOAST -->
 <div class="dash-toast" id="dashToast"></div>
 
@@ -536,6 +541,9 @@
     if (VALID_NIKS.indexOf(nik) > -1) {
       sessionStorage.setItem('nik_auth', nik);
       document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashContent').style.display = '';
+      // Baru load data setelah login berhasil
+      if (db) loadAll();
     } else {
       errEl.classList.add('show');
       document.getElementById('nikInput').value = '';
@@ -545,17 +553,20 @@
 
   /* ── INIT ── */
   window.onload = function() {
-    // Cek sesi — jika belum login, login screen tetap tampil
-    if (!sessionStorage.getItem('nik_auth')) {
-      // loginScreen sudah tampil by default, tidak perlu apa-apa
-    } else {
-      document.getElementById('loginScreen').style.display = 'none';
-    }
-
     if (window.supabase && window.supabase.createClient) {
       db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
     }
-    loadAll();
+
+    if (sessionStorage.getItem('nik_auth')) {
+      // Sudah login — langsung tampilkan dashboard
+      document.getElementById('loginScreen').style.display  = 'none';
+      document.getElementById('dashContent').style.display  = '';
+      if (db) loadAll();
+    } else {
+      // Belum login — sembunyikan konten, tampilkan login screen
+      document.getElementById('dashContent').style.display  = 'none';
+      document.getElementById('loginScreen').style.display  = 'flex';
+    }
   };
 
   /* ── KONVERSI URL GOOGLE DRIVE ──

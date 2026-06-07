@@ -19,6 +19,43 @@
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
+    /* ── LOGIN ── */
+    #loginScreen {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 99998; padding: 24px;
+    }
+    .login-box {
+      background: #fff; border-radius: 24px; padding: 36px 28px;
+      box-shadow: 0 20px 60px rgba(67,97,238,0.12);
+      border: 1.5px solid #e8eeff;
+      width: 100%; max-width: 360px; text-align: center;
+    }
+    .login-logo { font-size: 40px; margin-bottom: 8px; }
+    .login-title { font-weight: 800; font-size: 20px; margin-bottom: 4px; color: var(--primary); }
+    .login-sub   { font-size: 12px; color: var(--muted); margin-bottom: 28px; }
+    .login-label { font-size: 12px; font-weight: 700; color: var(--muted); text-align: left; display: block; margin-bottom: 8px; }
+    .login-input {
+      width: 100%; padding: 14px 16px; border-radius: 14px;
+      border: 1.5px solid #e2e8f0; background: #f8fafc;
+      font-size: 18px; font-family: inherit; color: var(--text);
+      outline: none; text-align: center; letter-spacing: 5px;
+      font-weight: 700; margin-bottom: 16px;
+    }
+    .login-input:focus { border-color: var(--primary); background: #fff; }
+    .login-btn {
+      width: 100%; padding: 14px; border-radius: 14px; border: none;
+      background: var(--primary); color: white; font-size: 15px;
+      font-weight: 800; cursor: pointer; font-family: inherit;
+      box-shadow: 0 8px 20px rgba(67,97,238,0.25);
+    }
+    .login-err {
+      background: #fff0f3; border: 1px solid #fecdd3; border-radius: 10px;
+      padding: 9px 13px; margin-top: 12px; font-size: 12px;
+      font-weight: 600; color: var(--danger); display: none;
+    }
+    .login-err.show { display: block; }
+
     /* ── TOPBAR ── */
     .topbar {
       position: sticky; top: 0; z-index: 50;
@@ -323,6 +360,20 @@
 </head>
 <body>
 
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">📊</div>
+    <div class="login-title">Inventory Dashboard</div>
+    <div class="login-sub">AEON Store &bull; DP Mall Semarang</div>
+    <label class="login-label">Masukkan NIK Anda</label>
+    <input type="number" id="nikInput" class="login-input" placeholder="· · · · · · ·"
+      onkeydown="if(event.key==='Enter') doLogin()">
+    <button class="login-btn" onclick="doLogin()">Masuk ke Dashboard →</button>
+    <div class="login-err" id="loginErr">❌ NIK tidak dikenali. Coba lagi.</div>
+  </div>
+</div>
+
 <!-- TOPBAR -->
 <header class="topbar">
   <div class="topbar-left">
@@ -476,8 +527,31 @@
 
   var DEPTS = ['GROCERY','DND','GMS','HBC','DELSUSBAK','PRODUCE','NONFOOD'];
 
+  var VALID_NIKS = ['2510009', '1612004', '2410035'];
+
+  /* ── LOGIN ── */
+  function doLogin() {
+    var nik   = String(document.getElementById('nikInput').value).trim();
+    var errEl = document.getElementById('loginErr');
+    if (VALID_NIKS.indexOf(nik) > -1) {
+      sessionStorage.setItem('nik_auth', nik);
+      document.getElementById('loginScreen').style.display = 'none';
+    } else {
+      errEl.classList.add('show');
+      document.getElementById('nikInput').value = '';
+      setTimeout(function(){ errEl.classList.remove('show'); }, 3000);
+    }
+  }
+
   /* ── INIT ── */
   window.onload = function() {
+    // Cek sesi — jika belum login, login screen tetap tampil
+    if (!sessionStorage.getItem('nik_auth')) {
+      // loginScreen sudah tampil by default, tidak perlu apa-apa
+    } else {
+      document.getElementById('loginScreen').style.display = 'none';
+    }
+
     if (window.supabase && window.supabase.createClient) {
       db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
     }
@@ -599,12 +673,17 @@
     return 0;
   }
 
-  /* ── DEPT CHIPS ── */
+  /* ── DEPT CHIPS — tampilkan total item per dept (bukan hanya warning) ── */
   function updateDeptChips() {
     DEPTS.forEach(function(d) {
-      var w = allData.filter(function(r){ return r.dept === d && r.remarks === 'WARNING'; }).length;
-      var el = document.getElementById('cw-' + d);
-      if (el) { el.textContent = w; el.style.display = w > 0 ? '' : 'none'; }
+      var total = allData.filter(function(r){ return r.dept === d; }).length;
+      var warn  = allData.filter(function(r){ return r.dept === d && r.remarks === 'WARNING'; }).length;
+      var el    = document.getElementById('cw-' + d);
+      if (el) {
+        el.textContent     = warn > 0 ? warn + ' ⚠️' : total;
+        el.style.display   = '';
+        // Chip tetap tampil meski 0 warning, karena klik dept harus filter semua data
+      }
     });
   }
 
@@ -612,28 +691,32 @@
     activeDept = dept;
     document.querySelectorAll('.dept-chip').forEach(function(c){ c.classList.remove('active'); });
     if (el) el.classList.add('active');
+    // Reset filter status ke ALL saat ganti dept agar semua data tampil
+    document.getElementById('fStatus').value = 'ALL';
     applyFilter();
   }
 
-  /* ── FILTER + SORT ── */
+  /* ── FILTER + SORT — dept chip filter semua status, bukan hanya warning ── */
   function applyFilter() {
     var search  = document.getElementById('searchBox').value.toLowerCase();
     var status  = document.getElementById('fStatus').value;
     var sortVal = document.getElementById('fSort').value;
 
     filtered = allData.filter(function(r) {
+      // Filter dept: tampilkan SEMUA item dept tersebut (warning & aman)
       var okDept   = activeDept === 'ALL' || r.dept === activeDept;
       var okStatus = status === 'ALL'     || r.remarks === status;
       var okSearch = !search
         || (r.deskripsi_barang || '').toLowerCase().indexOf(search) > -1
-        || (r.barcode || '').toLowerCase().indexOf(search) > -1;
+        || (r.barcode || '').toLowerCase().indexOf(search) > -1
+        || (r.dept || '').toLowerCase().indexOf(search) > -1;
       return okDept && okStatus && okSearch;
     });
 
     // Sort
     var parts = sortVal.split('_');
-    var col = parts.slice(0,-1).join('_');
-    var dir = parts[parts.length - 1];
+    var col   = parts.slice(0,-1).join('_');
+    var dir   = parts[parts.length - 1];
     filtered.sort(function(a, b) {
       var va = a[col] || ''; var vb = b[col] || '';
       if (col === 'qty') { va = parseInt(va)||0; vb = parseInt(vb)||0; }

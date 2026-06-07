@@ -265,11 +265,17 @@
     <label>Barcode / SKU</label>
     <div style="display:flex;gap:8px;margin-bottom:5px;">
       <input type="text" id="barcode" placeholder="Scan/Ketik" style="margin-bottom:0;">
-      <button type="button" class="main-btn btn-scan" style="width:60px;padding:0;flex-shrink:0;"
-        onclick="startScanning()" title="Scan Barcode">📷</button>
-      <button type="button" class="main-btn" style="width:60px;padding:0;background:#e2e8f0;flex-shrink:0;"
-        onclick="document.getElementById('qrFileInput').click()" title="Scan dari Foto">📂</button>
+      <button type="button" class="main-btn btn-scan" style="width:60px;padding:0;flex-shrink:0;" onclick="startScanning()" title="Scan Langsung">📷</button>
+      <button type="button" class="main-btn" style="width:60px;padding:0;background:#e2e8f0;flex-shrink:0;" onclick="document.getElementById('qrFileInput').click()" title="Scan dari Foto">📂</button>
     </div>
+    <div style="background:#fff9db;border-left:4px solid #fcc419;padding:8px 12px;border-radius:8px;margin-bottom:15px;margin-top:8px;">
+      <p style="margin:0;font-size:10px;color:#856404;line-height:1.4;">
+        <strong>💡 Tips:</strong> Jika 📷 tidak bisa, gunakan 📂 lalu ambil foto barcode-nya.
+      </p>
+    </div>
+    <input type="file" id="qrFileInput" accept="image/*" style="display:none">
+    <div id="reader"></div>
+    <button id="btnStop" type="button" class="main-btn" style="display:none;background:var(--danger);color:white;margin-bottom:10px;" onclick="stopScanning()">❌ Hentikan Scanner</button>
 
     <!-- Tips: muncul berbeda untuk iOS vs Android -->
     <div id="tipBox" style="background:#fff9db;border-left:4px solid #fcc419;padding:8px 12px;border-radius:8px;margin-bottom:15px;margin-top:8px;">

@@ -49,6 +49,16 @@
       font-weight: 800; cursor: pointer; font-family: inherit;
       box-shadow: 0 8px 20px rgba(67,97,238,0.25);
     }
+    /* Tombol Kembali di Layar Login */
+    .login-btn-back {
+      display: inline-block; width: 100%; padding: 12px; margin-top: 10px;
+      border-radius: 14px; border: 1.5px solid #e2e8f0;
+      background: #f8fafc; color: var(--muted); font-size: 13px;
+      font-weight: 700; cursor: pointer; font-family: inherit;
+      text-decoration: none; transition: all 0.2s;
+    }
+    .login-btn-back:hover { background: #e2e8f0; color: var(--text); }
+    
     .login-err {
       background: #fff0f3; border: 1px solid #fecdd3; border-radius: 10px;
       padding: 9px 13px; margin-top: 12px; font-size: 12px;
@@ -297,6 +307,7 @@
     <label class="login-label">Masukkan NIK Anda</label>
     <input type="number" id="nikInput" class="login-input" placeholder="· · · · · · ·" onkeydown="if(event.key==='Enter') doLogin()">
     <button class="login-btn" onclick="doLogin()">Masuk ke Dashboard →</button>
+    <a href="index.html" class="login-btn-back">🔙 Kembali ke Form Input</a>
     <div class="login-err" id="loginErr">❌ NIK tidak dikenali. Coba lagi.</div>
   </div>
 </div>
@@ -523,11 +534,11 @@
           var diff = Math.ceil((expD - today) / 86400000);
           
           if (diff < 0) {
-            r.rt_status = 'EXPIRED'; // Hari ini sudah melewati Expired Date
+            r.rt_status = 'EXPIRED'; 
           } else if (limitHari > 0 && diff <= limitHari) {
-            r.rt_status = 'WARNING'; // Masuk batas hari peringatan
+            r.rt_status = 'WARNING'; 
           } else {
-            r.rt_status = 'AMAN';    // Masih jauh dari expired
+            r.rt_status = 'AMAN';    
           }
         } else {
           r.rt_status = r.remarks || 'AMAN';
@@ -571,7 +582,6 @@
   function updateStats() {
     var warn = 0, aman = 0, expItems = 0;
     
-    // Perhitungan dashboard berdasarkan status Real-Time terbaru
     allData.forEach(function(r) {
       if (r.rt_status === 'WARNING') warn++;
       else if (r.rt_status === 'AMAN') aman++;
@@ -685,7 +695,6 @@
         return d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
       };
 
-      // Tampilkan Badge Berdasarkan Real-Time Status
       var remDisp = r.rt_status;
 
       var imgHtml, fotoAttr;

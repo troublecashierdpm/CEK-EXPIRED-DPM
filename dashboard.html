@@ -49,6 +49,7 @@
       font-weight: 800; cursor: pointer; font-family: inherit;
       box-shadow: 0 8px 20px rgba(67,97,238,0.25);
     }
+    /* Tombol Kembali di Layar Login */
     .login-btn-back {
       display: inline-block; width: 100%; padding: 12px; margin-top: 10px;
       border-radius: 14px; border: 1.5px solid #e2e8f0;
@@ -117,13 +118,19 @@
       padding: 16px 18px; display: flex; flex-direction: column; gap: 6px;
       position: relative; overflow: hidden;
     }
-    .stat-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .stat-card::after {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+    }
     .stat-card.c-red::after    { background: var(--danger); }
     .stat-card.c-orange::after { background: var(--warning-clr); }
     .stat-card.c-green::after  { background: var(--success); }
     .stat-card.c-blue::after   { background: var(--primary); }
     .stat-icon { font-size: 20px; }
-    .stat-val { font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+    .stat-val {
+      font-size: 30px; font-weight: 800; line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
     .stat-val.c-red    { color: var(--danger); }
     .stat-val.c-orange { color: var(--warning-clr); }
     .stat-val.c-green  { color: var(--success); }
@@ -132,7 +139,9 @@
     .stat-sub   { font-size: 11px; color: #94a3b8; }
 
     /* ── DEPT SUMMARY ROW ── */
-    .dept-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .dept-row {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+    }
     .dept-chip {
       background: var(--card); border: 1px solid var(--border);
       border-radius: 50px; padding: 6px 14px;
@@ -155,14 +164,16 @@
       overflow: hidden;
     }
     .panel-head {
-      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
       display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     }
     .search-box {
       flex: 1; min-width: 160px; max-width: 240px;
       background: #f8fafc; border: 1.5px solid var(--border);
       border-radius: 10px; padding: 7px 12px;
-      font-size: 13px; font-family: inherit; color: var(--text); outline: none;
+      font-size: 13px; font-family: inherit; color: var(--text);
+      outline: none;
     }
     .search-box:focus { border-color: var(--primary); background: #fff; }
     .filter-sel {
@@ -188,6 +199,7 @@
       white-space: nowrap; cursor: pointer; user-select: none;
     }
     thead th:hover { color: var(--text); }
+    thead th.sorted { color: var(--primary); }
     tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: #fafbff; }
@@ -407,9 +419,7 @@
   </div>
 </div>
 
-</div>
-
-<div class="dash-toast" id="dashToast"></div>
+</div><div class="dash-toast" id="dashToast"></div>
 
 <div class="confirm-bg" id="confirmBg">
   <div class="confirm-box">
@@ -511,6 +521,7 @@
       var resMaster = results[0];
       if (!resMaster.error && resMaster.data) masterData = resMaster.data;
 
+      // ── LOGIKA UPDATE STATUS REAL-TIME (AMAN / WARNING / EXPIRED) ──
       var rawData = results[1];
       var today = new Date(); today.setHours(0,0,0,0);
       
@@ -650,7 +661,7 @@
     }
 
     var html = '';
-    rows.forEach(function(r, idx) {
+    rows.forEach(function(r) {
       var nama    = r.deskripsi_barang || r.deskripsi || '-';
       var expStr  = r.expired_date || '-';
       var kategori = r.jenis_barang || r.kategori || '';
@@ -695,13 +706,11 @@
         imgHtml = '📦'; fotoAttr = '';
       }
 
-      // PERBAIKAN PENTING DI SINI: Identifikasi unik yang aman menggunakan string Barcode & Deskripsi
-      var barcodeEsc = String(r.barcode || '').replace(/'/g,"\\'");
-      var namaEsc    = nama.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      var domRowId   = (r.id || r.barcode || 'idx-' + idx).toString().replace(/\s+/g, '-');
+      var namaEsc = nama.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      var rowId   = r.id || '';
 
-      html += '<tr id="row-' + domRowId + '">'
-        + '<td><input type="checkbox" class="cb-row" value="' + domRowId + '" data-barcode="' + (r.barcode||'') + '" data-desc="' + namaEsc + '" onchange="onCbChange()"></td>'
+      html += '<tr id="row-' + rowId + '">'
+        + '<td><input type="checkbox" class="cb-row" value="' + rowId + '" onchange="onCbChange()"></td>'
         + '<td><div class="td-foto-wrap"' + fotoAttr + '>' + imgHtml + '</div></td>'
         + '<td><span class="badge-dept-tbl">' + (r.dept||'-') + '</span></td>'
         + '<td class="td-nama" title="' + nama + '">' + nama + '</td>'
@@ -714,7 +723,7 @@
         +   (limitHari > 0 ? '<br><span style="font-size:9px;color:#94a3b8;">limit ' + limitHari + 'h</span>' : '')
         + '</td>'
         + '<td><span class="chip-status ' + remDisp + '">' + remDisp + '</span></td>'
-        + '<td><button class="btn-del-row" onclick="askDelete(\'' + barcodeEsc + '\', \'' + namaEsc + '\')" title="Hapus baris">🗑️</button></td>'
+        + '<td><button class="btn-del-row" onclick="askDelete(' + rowId + ',\'' + namaEsc + '\')" title="Hapus baris">🗑️</button></td>'
         + '</tr>';
     });
     body.innerHTML = html;
@@ -747,26 +756,20 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // ── PERBAIKAN FUNGSI HAPUS (MENGGUNAKAN BARCODE & NAMA BARANG) ──
-  var pendingDeletes = [];  
+  var pendingDeleteIds = [];  
 
-  function askDelete(barcode, desc) {
-    pendingDeletes = [{ barcode: barcode, desc: desc }];
+  function askDelete(id, nama) {
+    pendingDeleteIds = [id];
     document.getElementById('confirmTitle').textContent = 'Hapus Data Ini?';
-    document.getElementById('confirmMsg').innerHTML = '<strong>' + desc + '</strong><br><br>Data yang dihapus tidak bisa dikembalikan.';
+    document.getElementById('confirmMsg').innerHTML = '<strong>' + nama + '</strong><br><br>Data yang dihapus tidak bisa dikembalikan.';
     openConfirm();
   }
 
   function deleteSelected() {
     var cbs = document.querySelectorAll('.cb-row:checked');
     if (cbs.length === 0) return;
-    pendingDeletes = [];
-    cbs.forEach(function(cb) { 
-      pendingDeletes.push({
-        barcode: cb.getAttribute('data-barcode'),
-        desc: cb.getAttribute('data-desc')
-      }); 
-    });
+    pendingDeleteIds = [];
+    cbs.forEach(function(cb) { pendingDeleteIds.push(parseInt(cb.value)); });
     document.getElementById('confirmTitle').textContent = 'Hapus ' + cbs.length + ' Data?';
     document.getElementById('confirmMsg').textContent = cbs.length + ' item yang dipilih akan dihapus permanen dari database.';
     openConfirm();
@@ -806,20 +809,16 @@
 
   function closeConfirm() {
     document.getElementById('confirmBg').classList.remove('open');
-    pendingDeletes = [];
+    pendingDeleteIds = [];
   }
 
   function execDelete() {
-    if (!pendingDeletes.length || !db) return;
+    if (!pendingDeleteIds.length || !db) return;
     var okBtn = document.getElementById('confirmOkBtn');
     okBtn.disabled = true;
 
-    var promises = pendingDeletes.map(function(item) {
-      // Hapus di Supabase dengan kombinasi Barcode dan Deskripsi
-      return db.from('data_expired')
-               .delete()
-               .eq('barcode', item.barcode)
-               .eq('deskripsi_barang', item.desc);
+    var promises = pendingDeleteIds.map(function(id) {
+      return db.from('data_expired').delete().eq('id', id);
     });
 
     Promise.all(promises).then(function(results) {
@@ -829,17 +828,14 @@
       if (errors.length > 0) {
         showToast('❌ Sebagian gagal dihapus (' + errors.length + ' error)', 'err');
       } else {
-        var n = pendingDeletes.length;
+        var n = pendingDeleteIds.length;
         showToast('🗑️ ' + n + ' data berhasil dihapus', 'ok');
       }
 
-      // Hapus dari data lokal dan re-render
-      pendingDeletes.forEach(function(delItem) {
-        allData = allData.filter(function(r){ 
-          return !(r.barcode == delItem.barcode && (r.deskripsi_barang == delItem.desc || r.deskripsi == delItem.desc)); 
-        });
+      pendingDeleteIds.forEach(function(id) {
+        allData = allData.filter(function(r){ return r.id !== id; });
       });
-      pendingDeletes = [];
+      pendingDeleteIds = [];
 
       var btn = document.getElementById('btnDelSelected');
       btn.classList.remove('show');

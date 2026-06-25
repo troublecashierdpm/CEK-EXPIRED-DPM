@@ -459,7 +459,7 @@
   // karena bisa sangat besar (base64 gambar) dan menyebabkan request gagal/timeout
   // ("TypeError: Failed to fetch") kalau ditarik untuk ribuan baris sekaligus.
   // Foto base64 baru diambil on-demand saat user klik thumbnail (lihat openModal).
-  var LIST_COLUMNS = 'id, dept, jenis_barang, kategori, deskripsi_barang, deskripsi, barcode, gondola, selving, qty, input_date, expired_date, link_foto, foto, remarks';
+  var LIST_COLUMNS = 'id, dept, jenis_barang, deskripsi_barang, deskripsi, barcode, gondola, selving, qty, input_date, expired_date, link_foto, foto, remarks';
 
   var DEPTS = ['GROCERY','DND','GMS','HBC','DELSUSBAK','PRODUCE','NONFOOD'];
   var VALID_NIKS = ['2510009', '1612004', '2410035', '1503008', '1504215', '2408182', '2509005', '2305008', '1508079', '2303031', '2510007', '1508067', '2410040', '1502002', '2504040', '2305014', '2510008'];

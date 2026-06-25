@@ -57,7 +57,7 @@
       text-decoration: none; transition: all 0.2s;
     }
     .login-btn-back:hover { background: #e2e8f0; color: var(--text); }
-    
+
     .login-err {
       background: #fff0f3; border: 1px solid #fecdd3; border-radius: 10px;
       padding: 9px 13px; margin-top: 12px; font-size: 12px;
@@ -213,7 +213,7 @@
     .chip-status.WARNING  { background: rgba(239,71,111,0.1); color: var(--danger); }
     .chip-status.AMAN     { background: rgba(6,214,160,0.1);  color: #059669; }
     .chip-status.EXPIRED  { background: rgba(239,71,111,0.2); color: #be123c; }
-    
+
     .sisa-near   { color: var(--danger); font-weight: 700; font-size: 11px; }
     .sisa-warn   { color: var(--warning-clr); font-weight: 600; font-size: 11px; }
     .sisa-safe   { color: #059669; font-size: 11px; }
@@ -257,7 +257,7 @@
     .confirm-btns  { display: flex; gap: 10px; justify-content: center; }
     .confirm-cancel { flex: 1; padding: 11px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #f8fafc; color: #64748b; font-size: 13px; font-weight: 700; cursor: pointer; }
     .confirm-ok { flex: 1; padding: 11px; border-radius: 10px; border: none; background: var(--danger); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
-    
+
     /* ── PAGINATION ── */
     .pagi { display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 10px 14px; border-top: 1px solid var(--border); }
     .pg-btn { width: 28px; height: 28px; border-radius: 7px; background: #f1f5f9; border: 1px solid var(--border); font-size: 12px; cursor: pointer; color: var(--muted); }
@@ -274,12 +274,21 @@
     .modal-inner { position: relative; max-width: 90vw; }
     .modal-inner img { max-width: 90vw; max-height: 80vh; border-radius: 12px; object-fit: contain; display: block; }
     .modal-x { position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.15); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; }
+    .modal-loading { color: #fff; font-size: 13px; padding: 40px; text-align: center; }
 
     /* ── TOAST ── */
-    .dash-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(16px); background: #1e293b; color: #fff; padding: 10px 22px; border-radius: 50px; font-size: 13px; font-weight: 600; z-index: 20000; opacity: 0; pointer-events: none; transition: all 0.3s; }
-    .dash-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .dash-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(16px); background: #1e293b; color: #fff; padding: 10px 22px; border-radius: 50px; font-size: 13px; font-weight: 600; z-index: 20000; opacity: 0; pointer-events: none; transition: all 0.3s; max-width: 90vw; text-align: center; }
+    .dash-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
     .dash-toast.ok  { background: linear-gradient(135deg,#059669,#06d6a0); }
     .dash-toast.err { background: linear-gradient(135deg,#dc2626,#ef476f); }
+
+    /* ── ERROR BANNER (pesan error lengkap, tidak terpotong) ── */
+    .err-banner {
+      display: none; background: #fff0f3; border: 1px solid #fecdd3; color: #be123c;
+      font-size: 12px; font-weight: 600; padding: 10px 16px; border-radius: 10px;
+      margin-bottom: 16px; white-space: pre-wrap; word-break: break-word;
+    }
+    .err-banner.show { display: block; }
 
     /* ── RESPONSIVE ── */
     @media (max-width: 700px) { .stats { grid-template-columns: repeat(2,1fr); } .topbar-sub { display: none; } }
@@ -314,12 +323,14 @@
     <button class="btn-reload" id="btnReload" onclick="loadAll()">
       <span class="ico">↻</span><span class="spin">◌</span> Refresh
     </button>
-    <span id="loadStatus" style="font-size:11px;color:#94a3b8;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+    <span id="loadStatus" style="font-size:11px;color:#94a3b8;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title=""></span>
     <a class="btn-back" href="index.html">✏️ Input Barang</a>
   </div>
 </header>
 
 <div class="content">
+
+  <div class="err-banner" id="errBanner"></div>
 
   <div class="stats">
     <div class="stat-card c-red">
@@ -426,7 +437,7 @@
 <div class="modal-bg" id="modalBg" onclick="closeModal()">
   <div class="modal-inner" onclick="event.stopPropagation()">
     <button class="modal-x" onclick="closeModal()">✕</button>
-    <img id="modalImg" src="">
+    <div id="modalContent"></div>
   </div>
 </div>
 
@@ -436,12 +447,19 @@
   var db = null;
 
   var allData      = [];
-  var masterData   = [];   
+  var masterData   = [];
   var filtered     = [];
+  var rowMap       = {};   // domRowId -> row object, untuk lookup cepat (mis. saat buka modal foto)
   var activeDept   = 'ALL';
   var curPage      = 1;
   var perPage      = 30;
-  var BATCH        = 1000; 
+  var BATCH        = 1000;
+
+  // Kolom yang diambil untuk tabel list. foto_base64 SENGAJA tidak ikut di sini
+  // karena bisa sangat besar (base64 gambar) dan menyebabkan request gagal/timeout
+  // ("TypeError: Failed to fetch") kalau ditarik untuk ribuan baris sekaligus.
+  // Foto base64 baru diambil on-demand saat user klik thumbnail (lihat openModal).
+  var LIST_COLUMNS = 'id, dept, jenis_barang, kategori, deskripsi_barang, deskripsi, barcode, gondola, selving, qty, input_date, expired_date, link_foto, foto, remarks';
 
   var DEPTS = ['GROCERY','DND','GMS','HBC','DELSUSBAK','PRODUCE','NONFOOD'];
   var VALID_NIKS = ['2510009', '1612004', '2410035', '1503008', '1504215', '2408182', '2509005', '2305008', '1508079', '2303031', '2510007', '1508067', '2410040', '1502002', '2504040', '2305014', '2510008'];
@@ -461,10 +479,38 @@
     }
   }
 
-  window.onload = function() {
-    if (window.supabase && window.supabase.createClient) {
-      db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  function initSupabase() {
+    try {
+      if (window.supabase && window.supabase.createClient) {
+        db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+        return true;
+      }
+    } catch (e) {
+      console.error('Gagal inisialisasi Supabase client:', e);
     }
+    return false;
+  }
+
+  window.onload = function() {
+    var ready = initSupabase();
+
+    // Kalau library Supabase belum sempat termuat saat onload (koneksi lambat,
+    // CDN lambat, dll), coba lagi beberapa kali sebelum benar-benar menyerah.
+    if (!ready) {
+      var attempts = 0;
+      var retry = setInterval(function() {
+        attempts++;
+        if (initSupabase() || attempts >= 20) {
+          clearInterval(retry);
+          if (!db) {
+            showErrBanner('Gagal memuat library Supabase (cek koneksi internet / ad-blocker yang memblokir cdn.jsdelivr.net atau supabase.co).');
+          } else if (sessionStorage.getItem('nik_auth')) {
+            loadAll();
+          }
+        }
+      }, 250);
+    }
+
     if (sessionStorage.getItem('nik_auth')) {
       document.getElementById('loginScreen').style.display  = 'none';
       document.getElementById('dashContent').style.display  = '';
@@ -485,7 +531,7 @@
       var m2 = url.match(/[?&]id=([^&]+)/);
       if (m2) id = m2[1];
     }
-    if (!id) return ''; 
+    if (!id) return '';
     return 'https://drive.google.com/thumbnail?id=' + id + '&sz=w200';
   }
 
@@ -497,52 +543,107 @@
     return 0;
   }
 
+  // Mengubah error apapun (Error object, Supabase PostgrestError, string, dll)
+  // menjadi teks yang jelas & lengkap supaya tidak ada lagi pesan terpotong.
+  function describeError(err) {
+    if (!err) return 'Unknown error';
+    if (typeof err === 'string') return err;
+    var parts = [];
+    if (err.message) parts.push(err.message);
+    if (err.details) parts.push(err.details);
+    if (err.hint) parts.push('Hint: ' + err.hint);
+    if (err.code) parts.push('Code: ' + err.code);
+    if (parts.length === 0) {
+      try { parts.push(JSON.stringify(err)); } catch (e) { parts.push(String(err)); }
+    }
+    return parts.join(' — ');
+  }
+
+  function showErrBanner(msg) {
+    var el = document.getElementById('errBanner');
+    if (!el) return;
+    if (!msg) { el.classList.remove('show'); el.textContent = ''; return; }
+    el.textContent = '⚠️ ' + msg;
+    el.classList.add('show');
+  }
+
   function loadAll() {
-    if (!db) return;
+    if (!db) {
+      showErrBanner('Koneksi ke Supabase belum siap. Coba refresh halaman.');
+      return;
+    }
     var btn = document.getElementById('btnReload');
     btn.classList.add('spinning');
+    showErrBanner(null);
     setStatus('Memuat data...');
 
-    var p1 = db.from('data_master').select('*');
-    var p2 = fetchAllRows();
+    var p1 = db.from('data_master').select('*')
+      .then(function(res){ return res; })
+      .catch(function(err){ return { error: err, _source: 'data_master' }; });
+
+    var p2 = fetchAllRows()
+      .then(function(rows){ return { data: rows }; })
+      .catch(function(err){ return { error: err, _source: 'data_expired' }; });
 
     Promise.all([p1, p2]).then(function(results) {
       btn.classList.remove('spinning');
-      var resMaster = results[0];
-      if (!resMaster.error && resMaster.data) masterData = resMaster.data;
 
-      var rawData = results[1];
+      var resMaster = results[0];
+      var resExpired = results[1];
+
+      if (resMaster.error) {
+        console.error('Gagal memuat data_master:', resMaster.error);
+        showErrBanner('Gagal memuat data_master: ' + describeError(resMaster.error));
+      } else if (resMaster.data) {
+        masterData = resMaster.data;
+      }
+
+      if (resExpired.error) {
+        console.error('Gagal memuat data_expired:', resExpired.error);
+        setStatus('');
+        showErrBanner('Gagal memuat data_expired: ' + describeError(resExpired.error));
+        renderEmptyState('Gagal memuat data. Lihat pesan error di atas, atau cek tab Console (F12) untuk detail lengkap.');
+        return;
+      }
+
+      var rawData = resExpired.data || [];
       var today = new Date(); today.setHours(0,0,0,0);
-      
+
       rawData.forEach(function(r) {
         var kategori = r.jenis_barang || r.kategori || '';
         var limitHari = getLimit(r.dept, kategori);
-        
+
         if (r.expired_date) {
           var expD = new Date(r.expired_date); expD.setHours(0,0,0,0);
           var diff = Math.ceil((expD - today) / 86400000);
-          
+
           if (diff < 0) {
-            r.rt_status = 'EXPIRED'; 
+            r.rt_status = 'EXPIRED';
           } else if (limitHari > 0 && diff <= limitHari) {
-            r.rt_status = 'WARNING'; 
+            r.rt_status = 'WARNING';
           } else {
-            r.rt_status = 'AMAN';    
+            r.rt_status = 'AMAN';
           }
         } else {
           r.rt_status = r.remarks || 'AMAN';
         }
       });
-      
+
       allData = rawData;
-      
+
       setStatus('');
       updateStats();
       updateDeptChips();
       applyFilter();
     }).catch(function(err) {
+      // Fallback jika ada error tak terduga di luar p1/p2 (seharusnya jarang terjadi
+      // karena masing-masing sudah punya .catch sendiri di atas)
       btn.classList.remove('spinning');
-      setStatus('Gagal memuat data: ' + err.message);
+      console.error('Gagal memuat data (unexpected):', err);
+      var msg = describeError(err);
+      setStatus('');
+      showErrBanner('Gagal memuat data: ' + msg);
+      renderEmptyState('Gagal memuat data: ' + msg);
     });
   }
 
@@ -550,7 +651,10 @@
     var allRows = [];
     var from = 0;
     function fetchBatch() {
-      return db.from('data_expired').select('*').order('expired_date', { ascending: true }).range(from, from + BATCH - 1)
+      return db.from('data_expired')
+        .select(LIST_COLUMNS)
+        .order('expired_date', { ascending: true })
+        .range(from, from + BATCH - 1)
         .then(function(res) {
           if (res.error) throw res.error;
           var rows = res.data || [];
@@ -565,18 +669,23 @@
 
   function setStatus(msg) {
     var el = document.getElementById('loadStatus');
-    if (el) el.textContent = msg;
+    if (el) { el.textContent = msg; el.title = msg || ''; }
+  }
+
+  function renderEmptyState(msg) {
+    var body = document.getElementById('tblBody');
+    body.innerHTML = '<tr><td class="tbl-state" colspan="12">' + msg + '</td></tr>';
   }
 
   function updateStats() {
     var warn = 0, aman = 0, expItems = 0;
-    
+
     allData.forEach(function(r) {
       if (r.rt_status === 'WARNING') warn++;
       else if (r.rt_status === 'AMAN') aman++;
       else if (r.rt_status === 'EXPIRED') expItems++;
     });
-    
+
     document.getElementById('sWarn').textContent  = warn;
     document.getElementById('sToday').textContent = expItems;
     document.getElementById('sAman').textContent  = aman;
@@ -655,7 +764,7 @@
       var expStr  = r.expired_date || '-';
       var kategori = r.jenis_barang || r.kategori || '';
 
-      var rawImg = r.foto_base64 || r.link_foto || r.foto || '';
+      var rawImg = r.link_foto || r.foto || '';
       var imgSrc = rawImg.indexOf('drive.google.com') > -1 ? driveToImg(rawImg) : rawImg;
       var limitHari = getLimit(r.dept, kategori);
 
@@ -685,20 +794,22 @@
       };
 
       var remDisp = r.rt_status;
+      var domRowId = (r.id || r.barcode || 'idx-' + idx).toString().replace(/\s+/g, '-');
+      rowMap[domRowId] = r;
 
       var imgHtml, fotoAttr;
       if (imgSrc) {
-        var safeModalSrc = (r.foto_base64 || driveToImg(r.link_foto || r.foto || '') || imgSrc).replace(/'/g,'%27');
         imgHtml  = '<img src="' + imgSrc + '" loading="lazy" onerror="this.parentNode.innerHTML=\'📦\'">';
-        fotoAttr = ' onclick="openModal(\'' + safeModalSrc + '\')" style="cursor:pointer;"';
+        fotoAttr = ' onclick="openModal(\'' + domRowId.replace(/'/g,"\\'") + '\')" style="cursor:pointer;"';
       } else {
-        imgHtml = '📦'; fotoAttr = '';
+        // Tidak ada link_foto/foto -> kemungkinan fotonya tersimpan sebagai foto_base64
+        // di database. Tetap bisa diklik, nanti diambil on-demand di openModal().
+        imgHtml = '📦';
+        fotoAttr = ' onclick="openModal(\'' + domRowId.replace(/'/g,"\\'") + '\')" style="cursor:pointer;"';
       }
 
-      // PERBAIKAN PENTING DI SINI: Identifikasi unik yang aman menggunakan string Barcode & Deskripsi
       var barcodeEsc = String(r.barcode || '').replace(/'/g,"\\'");
       var namaEsc    = nama.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      var domRowId   = (r.id || r.barcode || 'idx-' + idx).toString().replace(/\s+/g, '-');
 
       html += '<tr id="row-' + domRowId + '">'
         + '<td><input type="checkbox" class="cb-row" value="' + domRowId + '" data-barcode="' + (r.barcode||'') + '" data-desc="' + namaEsc + '" onchange="onCbChange()"></td>'
@@ -747,8 +858,8 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // ── PERBAIKAN FUNGSI HAPUS (MENGGUNAKAN BARCODE & NAMA BARANG) ──
-  var pendingDeletes = [];  
+  // ── HAPUS DATA (BERDASARKAN BARCODE & NAMA BARANG) ──
+  var pendingDeletes = [];
 
   function askDelete(barcode, desc) {
     pendingDeletes = [{ barcode: barcode, desc: desc }];
@@ -761,11 +872,11 @@
     var cbs = document.querySelectorAll('.cb-row:checked');
     if (cbs.length === 0) return;
     pendingDeletes = [];
-    cbs.forEach(function(cb) { 
+    cbs.forEach(function(cb) {
       pendingDeletes.push({
         barcode: cb.getAttribute('data-barcode'),
         desc: cb.getAttribute('data-desc')
-      }); 
+      });
     });
     document.getElementById('confirmTitle').textContent = 'Hapus ' + cbs.length + ' Data?';
     document.getElementById('confirmMsg').textContent = cbs.length + ' item yang dipilih akan dihapus permanen dari database.';
@@ -815,7 +926,6 @@
     okBtn.disabled = true;
 
     var promises = pendingDeletes.map(function(item) {
-      // Hapus di Supabase dengan kombinasi Barcode dan Deskripsi
       return db.from('data_expired')
                .delete()
                .eq('barcode', item.barcode)
@@ -827,16 +937,16 @@
       closeConfirm();
 
       if (errors.length > 0) {
+        console.error('Gagal menghapus:', errors.map(function(e){ return e.error; }));
         showToast('❌ Sebagian gagal dihapus (' + errors.length + ' error)', 'err');
       } else {
         var n = pendingDeletes.length;
         showToast('🗑️ ' + n + ' data berhasil dihapus', 'ok');
       }
 
-      // Hapus dari data lokal dan re-render
       pendingDeletes.forEach(function(delItem) {
-        allData = allData.filter(function(r){ 
-          return !(r.barcode == delItem.barcode && (r.deskripsi_barang == delItem.desc || r.deskripsi == delItem.desc)); 
+        allData = allData.filter(function(r){
+          return !(r.barcode == delItem.barcode && (r.deskripsi_barang == delItem.desc || r.deskripsi == delItem.desc));
         });
       });
       pendingDeletes = [];
@@ -860,11 +970,44 @@
     el._t = setTimeout(function() { el.className = 'dash-toast'; }, 3500);
   }
 
-  function openModal(src) {
-    document.getElementById('modalImg').src = src;
+  // ── MODAL FOTO ──
+  // Kalau baris sudah punya link_foto/foto, tampilkan langsung.
+  // Kalau tidak ada, baru fetch foto_base64 untuk baris itu saja (on-demand),
+  // supaya list utama tetap ringan & cepat dimuat.
+  function openModal(domRowId) {
+    var r = rowMap[domRowId];
+    var content = document.getElementById('modalContent');
     document.getElementById('modalBg').classList.add('open');
     document.body.style.overflow = 'hidden';
+
+    if (!r) { content.innerHTML = '<div class="modal-loading">Data tidak ditemukan.</div>'; return; }
+
+    var rawImg = r.link_foto || r.foto || '';
+    var imgSrc = rawImg.indexOf('drive.google.com') > -1 ? driveToImg(rawImg) : rawImg;
+
+    if (imgSrc) {
+      content.innerHTML = '<img src="' + imgSrc.replace(/"/g,'&quot;') + '">';
+      return;
+    }
+
+    if (!db || !r.id) {
+      content.innerHTML = '<div class="modal-loading">Tidak ada foto untuk item ini.</div>';
+      return;
+    }
+
+    content.innerHTML = '<div class="modal-loading"><span class="spinner-ring"></span>Memuat foto...</div>';
+    db.from('data_expired').select('foto_base64').eq('id', r.id).single().then(function(res) {
+      if (res.error || !res.data || !res.data.foto_base64) {
+        content.innerHTML = '<div class="modal-loading">Tidak ada foto untuk item ini.</div>';
+        return;
+      }
+      content.innerHTML = '<img src="' + res.data.foto_base64.replace(/"/g,'&quot;') + '">';
+    }).catch(function(err) {
+      console.error('Gagal memuat foto:', err);
+      content.innerHTML = '<div class="modal-loading">Gagal memuat foto: ' + describeError(err) + '</div>';
+    });
   }
+
   function closeModal() {
     document.getElementById('modalBg').classList.remove('open');
     document.body.style.overflow = '';

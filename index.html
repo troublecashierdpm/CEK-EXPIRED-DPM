@@ -98,16 +98,12 @@
     }
     .btn-photo { background: #f1f5f9; color: var(--text-main); border: 1px solid #e2e8f0; margin-bottom: 10px; }
 
-    /* ── LIVE SCANNER ── */
     #scannerWrap {
       display: none; border-radius: 16px; overflow: hidden;
       border: 3px solid var(--primary); margin-bottom: 12px;
       position: relative; background: #000;
     }
-    #scannerVideo {
-      width: 100%; display: block;
-      -webkit-playsinline: true;
-    }
+    #scannerVideo { width: 100%; display: block; }
     #scannerOverlay {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
@@ -115,8 +111,7 @@
     }
     .aim-box {
       width: 220px; height: 130px;
-      border: 3px solid rgba(67,97,238,0.9);
-      border-radius: 12px;
+      border: 3px solid rgba(67,97,238,0.9); border-radius: 12px;
       box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
     }
     .aim-label {
@@ -285,18 +280,19 @@
 </div>
 
 <script>
-  var SUPA_URL = 'https://tplmwztdiccknphhxbqo.supabase.co';
-  var SUPA_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';
+  var SUPA_URL    = 'https://tplmwztdiccknphhxbqo.supabase.co';
+  var SUPA_KEY    = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';
+  var BUCKET_NAME = 'inventory-photos'; // Nama bucket Supabase Storage (harus Public)
 
   var db           = null;
   var selectedDept = "";
-  var base64Image  = "";
+  var fotoFile     = null;   // File asli foto (untuk upload ke Storage)
+  var previewSrc   = "";     // Data URL hanya untuk preview di browser
 
-  var scanStream      = null;   
-  var zxingReader     = null;   
-  var scanLoopActive  = false;  
-  var isIOS           = false;
-  var hasBarcodeAPI   = false;  
+  var scanStream     = null;
+  var scanLoopActive = false;
+  var isIOS          = false;
+  var hasBarcodeAPI  = false;
 
   var masterData = [
     { dept: "HBC",       kategori: "SKINCARE",   limit: 90  },
@@ -333,11 +329,9 @@
     isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     hasBarcodeAPI = ('BarcodeDetector' in window);
 
-    if (isIOS) {
-      document.getElementById('tipText').innerHTML = '<strong>📱 iOS:</strong> Pastikan Anda mengizinkan akses kamera. Tombol 📷 untuk scan langsung.';
-    } else {
-      document.getElementById('tipText').innerHTML = '<strong>💡 Tips:</strong> Tombol 📷 scan live otomatis. Tombol 📂 untuk scan dari foto di galeri.';
-    }
+    document.getElementById('tipText').innerHTML = isIOS
+      ? '<strong>📱 iOS:</strong> Pastikan Anda mengizinkan akses kamera. Tombol 📷 untuk scan langsung.'
+      : '<strong>💡 Tips:</strong> Tombol 📷 scan live otomatis. Tombol 📂 untuk scan dari foto di galeri.';
 
     if (window.supabase && window.supabase.createClient) {
       db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -356,128 +350,124 @@
   };
 
   /* ═══════════════════════════════════════
-     SCANNER — PERBAIKAN KHUSUS iOS
+     UPLOAD FOTO KE SUPABASE STORAGE
+     Foto dikompresi dulu di browser (maks 800px, JPEG 70%),
+     lalu di-upload sebagai file. Yang disimpan ke database
+     hanya URL publik (~80 karakter) — bukan base64.
+  ═══════════════════════════════════════ */
+  function compressAndUpload(file, filename) {
+    return new Promise(function(resolve) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          var MAX = 800;
+          var w = img.width, h = img.height;
+          if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+          if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+          canvas.toBlob(function(blob) {
+            if (!blob) { resolve(null); return; }
+
+            db.storage.from(BUCKET_NAME)
+              .upload(filename, blob, { contentType: 'image/jpeg', upsert: true })
+              .then(function(res) {
+                if (res.error) {
+                  console.error('Upload storage gagal:', res.error);
+                  resolve(null); return;
+                }
+                var pubRes = db.storage.from(BUCKET_NAME).getPublicUrl(filename);
+                resolve(pubRes.data ? pubRes.data.publicUrl : null);
+              })
+              .catch(function(err) {
+                console.error('Upload storage error:', err);
+                resolve(null);
+              });
+
+          }, 'image/jpeg', 0.70);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /* ═══════════════════════════════════════
+     SCANNER
   ═══════════════════════════════════════ */
   function startScanning() {
     var wrap  = document.getElementById('scannerWrap');
     var video = document.getElementById('scannerVideo');
-    var stop  = document.getElementById('btnStop');
-
     wrap.style.display = 'block';
-    stop.style.display = 'flex';
+    document.getElementById('btnStop').style.display = 'flex';
     scanLoopActive = true;
 
-    // Constraints diubah lebih ramah iOS (Fallback bertahap)
-    var constraints = {
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: false
-    };
-
-    navigator.mediaDevices.getUserMedia(constraints)
-      .catch(function() {
-        // Fallback jika iOS menolak resolusi spesifik di atas
-        return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-      })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
+      .catch(function() { return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); })
       .then(function(stream) {
         scanStream = stream;
         video.srcObject = stream;
-        video.setAttribute('playsinline', true); // Memaksa iOS memutar video tanpa full-screen
+        video.setAttribute('playsinline', true);
         video.play().catch(function(e) { console.warn("Auto-play error:", e); });
-
         video.addEventListener('loadedmetadata', function() {
-          if (hasBarcodeAPI) {
-            startBarcodeDetectorLoop(video);
-          } else {
-            startZxingLoop(video);
-          }
+          hasBarcodeAPI ? startBarcodeDetectorLoop(video) : startZxingLoop(video);
         }, { once: true });
       })
-      .catch(function(err) {
+      .catch(function() {
         stopScanning();
         showToast('❌ Kamera tidak bisa dibuka. Pastikan izin kamera aktif.', 't-error', 4000);
       });
   }
 
-  /* Engine 1: Native BarcodeDetector (iOS 17+) */
   function startBarcodeDetectorLoop(video) {
     var formats = ['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar','qr_code','data_matrix'];
     var detector = new BarcodeDetector({ formats: formats });
-
     function tick() {
       if (!scanLoopActive) return;
-      if (video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) { 
-        requestAnimationFrame(tick); return; 
-      }
-
+      if (video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) { requestAnimationFrame(tick); return; }
       detector.detect(video)
         .then(function(codes) {
-          if (codes && codes.length > 0) {
-            onBarcodeFound(codes[0].rawValue);
-          } else {
-            requestAnimationFrame(tick);
-          }
+          if (codes && codes.length > 0) onBarcodeFound(codes[0].rawValue);
+          else requestAnimationFrame(tick);
         })
-        .catch(function(err) {
-          // Jika Native Detector iOS gagal memproses, pindah paksa ke ZXing
-          console.warn('Native detector error, falling back to ZXing', err);
-          startZxingLoop(video);
-        });
+        .catch(function() { startZxingLoop(video); });
     }
     requestAnimationFrame(tick);
   }
 
-  /* Engine 2: ZXing-js (Fallback Terbaik) */
   function startZxingLoop(video) {
-    if (!window.ZXing) {
-      setTimeout(function() { startZxingLoop(video); }, 300);
-      return;
-    }
-
+    if (!window.ZXing) { setTimeout(function() { startZxingLoop(video); }, 300); return; }
     var hints = new Map();
-    var formats = [
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
       ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.UPC_A,  ZXing.BarcodeFormat.UPC_E,
-      ZXing.BarcodeFormat.CODE_39,ZXing.BarcodeFormat.CODE_93,
-      ZXing.BarcodeFormat.CODE_128,ZXing.BarcodeFormat.ITF,
-      ZXing.BarcodeFormat.CODABAR,ZXing.BarcodeFormat.QR_CODE,
-      ZXing.BarcodeFormat.DATA_MATRIX
-    ];
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+      ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
+      ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.CODABAR, ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX
+    ]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-
-    var reader  = new ZXing.MultiFormatReader();
+    var reader = new ZXing.MultiFormatReader();
     reader.setHints(hints);
-
-    var canvas  = document.createElement('canvas');
-    // PERBAIKAN: willReadFrequently menstabilkan performa memory di iOS
-    var ctx     = canvas.getContext('2d', { willReadFrequently: true }); 
-    var skipFrm = 0; 
-
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    var skipFrm = 0;
     function tick() {
       if (!scanLoopActive) return;
-      
-      // PERBAIKAN: Memastikan video benar-benar sudah merender piksel sebelum discan
-      if (video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) { 
-        requestAnimationFrame(tick); return; 
-      }
-
-      skipFrm++;
-      if (skipFrm < 3) { requestAnimationFrame(tick); return; }
+      if (video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) { requestAnimationFrame(tick); return; }
+      if (++skipFrm < 3) { requestAnimationFrame(tick); return; }
       skipFrm = 0;
-
-      canvas.width  = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
       try {
-        var imgData  = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        var luminance = new ZXing.RGBLuminanceSource(imgData.data, canvas.width, canvas.height);
-        var binary   = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminance));
-        var result   = reader.decode(binary);
+        var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var lum = new ZXing.RGBLuminanceSource(imgData.data, canvas.width, canvas.height);
+        var result = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum)));
         if (result) { onBarcodeFound(result.getText()); return; }
-      } catch(e) {
-        // Abaikan jika tidak menemukan barcode pada frame ini
-      }
+      } catch(e) {}
       requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
@@ -493,19 +483,14 @@
 
   function stopScanning() {
     scanLoopActive = false;
-    if (scanStream) {
-      scanStream.getTracks().forEach(function(t) { t.stop(); });
-      scanStream = null;
-    }
+    if (scanStream) { scanStream.getTracks().forEach(function(t) { t.stop(); }); scanStream = null; }
     var video = document.getElementById('scannerVideo');
     video.srcObject = null;
     document.getElementById('scannerWrap').style.display = 'none';
     document.getElementById('btnStop').style.display = 'none';
   }
 
-  function pickFromGallery() {
-    document.getElementById('galleryInput').click();
-  }
+  function pickFromGallery() { document.getElementById('galleryInput').click(); }
 
   function decodeFromImageFile(file) {
     showLoader('Membaca Barcode...');
@@ -513,54 +498,47 @@
     var img = new Image();
     img.onload = function() {
       if (hasBarcodeAPI) {
-        var formats = ['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar','qr_code','data_matrix'];
-        var det = new BarcodeDetector({ formats: formats });
-        det.detect(img).then(function(codes) {
+        new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar','qr_code','data_matrix'] })
+          .detect(img)
+          .then(function(codes) {
             URL.revokeObjectURL(url);
-            if (codes && codes.length > 0) { hideLoader(); onBarcodeFound(codes[0].rawValue); } 
-            else { decodeWithZxing(img, url); }
+            if (codes && codes.length > 0) { hideLoader(); onBarcodeFound(codes[0].rawValue); }
+            else decodeWithZxing(img, url);
           }).catch(function() { decodeWithZxing(img, url); });
       } else { decodeWithZxing(img, url); }
     };
-    img.onerror = function() {
-      URL.revokeObjectURL(url); hideLoader(); showToast('❌ Gagal membaca file gambar.', 't-error');
-    };
+    img.onerror = function() { URL.revokeObjectURL(url); hideLoader(); showToast('❌ Gagal membaca file gambar.', 't-error'); };
     img.src = url;
   }
 
   function decodeWithZxing(img, url) {
     if (!window.ZXing) { hideLoader(); showToast('❌ Library scan belum siap.', 't-error'); return; }
-
-    var canvas = document.createElement('canvas');
-    var MAX    = 1200;
-    var w = img.naturalWidth || img.width;
-    var h = img.naturalHeight || img.height;
+    var MAX = 1200;
+    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
     if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
     if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+    var canvas = document.createElement('canvas');
     canvas.width = w; canvas.height = h;
     var ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, 0, 0, w, h);
-
     var hints = new Map();
-    var fmts = [ ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93, ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR, ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX ];
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, fmts);
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
+      ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR,
+      ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX
+    ]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-
     var reader = new ZXing.MultiFormatReader();
     reader.setHints(hints);
-
     try {
-      var imgData  = ctx.getImageData(0, 0, w, h);
-      var lum      = new ZXing.RGBLuminanceSource(imgData.data, w, h);
-      var binary   = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
-      var result   = reader.decode(binary);
+      var imgData = ctx.getImageData(0, 0, w, h);
+      var result = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.RGBLuminanceSource(imgData.data, w, h))));
       if (url) URL.revokeObjectURL(url);
-      hideLoader();
-      onBarcodeFound(result.getText());
+      hideLoader(); onBarcodeFound(result.getText());
     } catch(e) {
       if (url) URL.revokeObjectURL(url);
-      hideLoader();
-      showToast('❌ Barcode tidak terbaca. Pastikan gambar jelas.', 't-error', 4000);
+      hideLoader(); showToast('❌ Barcode tidak terbaca. Pastikan gambar jelas.', 't-error', 4000);
     }
   }
 
@@ -569,19 +547,15 @@
   ═══════════════════════════════════════ */
   function selectDept(dept, el) {
     selectedDept = dept;
-    var btns = document.querySelectorAll('.btn-dept');
-    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+    document.querySelectorAll('.btn-dept').forEach(function(b) { b.classList.remove('active'); });
     if (el) el.classList.add('active');
     document.getElementById('cardDept').classList.remove('dept-error');
     document.getElementById('deptHint').classList.remove('show');
-
     var katSelect = document.getElementById("kategori");
     katSelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
-    for (var j = 0; j < masterData.length; j++) {
-      if (masterData[j].dept === dept) {
-        katSelect.innerHTML += '<option value="' + masterData[j].kategori + '">' + masterData[j].kategori + '</option>';
-      }
-    }
+    masterData.forEach(function(m) {
+      if (m.dept === dept) katSelect.innerHTML += '<option value="' + m.kategori + '">' + m.kategori + '</option>';
+    });
     katSelect.disabled = false;
   }
 
@@ -599,73 +573,104 @@
     if (!expValue) { showToast('⚠️ Isi Tanggal Kadaluarsa!', 't-error'); return; }
     if (!db)       { showToast('❌ Koneksi database tidak tersedia.', 't-error'); return; }
 
-    showLoader("Menyimpan Data...");
+    var masterObj = masterData.find(function(m) { return m.dept === selectedDept && m.kategori === katValue; });
+    var limitHari = masterObj ? parseInt(masterObj.limit) || 0 : 0;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var expDate = new Date(expValue); expDate.setHours(0,0,0,0);
+    var diffDays = Math.ceil((expDate - today) / 86400000);
+    var remarks = diffDays <= limitHari ? "WARNING" : "AMAN";
 
-    var masterObj = null;
-    for (var i = 0; i < masterData.length; i++) {
-      if (masterData[i].dept === selectedDept && masterData[i].kategori === katValue) {
-        masterObj = masterData[i]; break;
-      }
+    var barcodeVal = (document.getElementById("barcode").value || '').trim();
+
+    // Upload foto dulu (kalau ada), baru simpan ke database
+    var uploadPromise;
+    if (fotoFile) {
+      showLoader('📤 Mengupload foto...');
+      // Format nama file: dept_barcode_timestamp.jpg (aman untuk path Storage)
+      var safeBarcode = barcodeVal.replace(/[^a-zA-Z0-9]/g, '') || 'noBarcode';
+      var filename = selectedDept + '_' + safeBarcode + '_' + Date.now() + '.jpg';
+      uploadPromise = compressAndUpload(fotoFile, filename);
+    } else {
+      uploadPromise = Promise.resolve(null);
     }
-    var limitHari = masterObj && masterObj.limit ? parseInt(masterObj.limit) : 0;
-    var today     = new Date(); today.setHours(0,0,0,0);
-    var expDate   = new Date(expValue); expDate.setHours(0,0,0,0);
-    var diffDays  = Math.ceil((expDate - today) / 86400000);
-    var remarks   = diffDays <= limitHari ? "WARNING" : "AMAN";
 
-    var payload = {
-      dept:             selectedDept,
-      gondola:          document.getElementById("gondola").value,
-      selving:          document.getElementById("selving").value,
-      jenis_barang:     katValue,
-      barcode:          document.getElementById("barcode").value,
-      deskripsi_barang: document.getElementById("deskripsi").value,
-      qty:              parseInt(document.getElementById("qty").value) || 1,
-      input_date:       new Date().toISOString().split('T')[0],
-      expired_date:     expValue,
-      remarks:          remarks,
-      foto_base64:      base64Image
-    };
+    uploadPromise.then(function(fotoUrl) {
+      if (fotoFile && !fotoUrl) {
+        showToast('⚠️ Foto gagal diupload, data disimpan tanpa foto', 't-warning', 4000);
+      }
+      showLoader('💾 Menyimpan data...');
 
-    db.from('data_expired').insert([payload]).then(function(res) {
+      var payload = {
+        dept:             selectedDept,
+        gondola:          document.getElementById("gondola").value,
+        selving:          document.getElementById("selving").value,
+        jenis_barang:     katValue,
+        barcode:          barcodeVal,
+        deskripsi_barang: document.getElementById("deskripsi").value,
+        qty:              parseInt(document.getElementById("qty").value) || 1,
+        input_date:       new Date().toISOString().split('T')[0],
+        expired_date:     expValue,
+        remarks:          remarks,
+        link_foto:        fotoUrl || ''   // URL pendek ke Supabase Storage, BUKAN base64
+      };
+
+      return db.from('data_expired').insert([payload]);
+    }).then(function(res) {
       hideLoader();
+      if (!res) return; // sudah ditangani di .catch
       if (res.error) { showToast('❌ Gagal simpan: ' + res.error.message, 't-error', 5000); return; }
-      if (remarks === "WARNING") showToast('⚠️ Disimpan — Status WARNING!', 't-warning', 4000);
-      else                       showToast('✅ Disimpan — Status AMAN', 't-success');
-
+      showToast(remarks === "WARNING" ? '⚠️ Disimpan — Status WARNING!' : '✅ Disimpan — Status AMAN',
+                remarks === "WARNING" ? 't-warning' : 't-success', 4000);
       document.getElementById("barcode").value     = "";
       document.getElementById("deskripsi").value   = "";
       document.getElementById("qty").value         = "1";
       document.getElementById("expiredDate").value = "";
       removeImage();
+    }).catch(function(err) {
+      hideLoader();
+      console.error('saveData error:', err);
+      showToast('❌ Error: ' + (err && err.message ? err.message : String(err)), 't-error', 5000);
     });
   }
 
-  function openCamera() { var f = document.getElementById("fotoInput"); f.setAttribute('capture', 'environment'); f.click(); }
+  /* ═══════════════════════════════════════
+     FOTO HANDLING
+  ═══════════════════════════════════════ */
+  function openCamera()  { var f = document.getElementById("fotoInput"); f.setAttribute('capture','environment'); f.click(); }
   function openGallery() { var f = document.getElementById("fotoInput"); f.removeAttribute('capture'); f.click(); }
+
   function previewImage() {
     var file = document.getElementById("fotoInput").files[0];
     if (!file) return;
+    fotoFile = file; // Simpan File object asli untuk upload
+
+    // Tampilkan preview pakai data URL (hanya di browser, tidak masuk database)
     var reader = new FileReader();
     reader.onload = function(e) {
       var img = new Image();
       img.onload = function() {
         var canvas = document.createElement('canvas');
         var w = img.width, h = img.height;
-        if (w > 600) { h = h * 600 / w; w = 600; }
+        if (w > 600) { h = Math.round(h * 600 / w); w = 600; }
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        base64Image = canvas.toDataURL('image/jpeg', 0.6);
-        document.getElementById("preview").src = base64Image;
+        previewSrc = canvas.toDataURL('image/jpeg', 0.6);
+        document.getElementById("preview").src = previewSrc;
         document.getElementById("previewContainer").style.display = 'block';
       };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   }
-  function removeImage() { base64Image = ""; document.getElementById("fotoInput").value = ""; document.getElementById("previewContainer").style.display = 'none'; }
-  function openPreview(src) { document.getElementById("modalImg").src = src; document.getElementById("imageModal").style.display = "flex"; document.body.style.overflow = "hidden"; }
-  function closePreview() { document.getElementById("imageModal").style.display = "none"; document.body.style.overflow = "auto"; }
+
+  function removeImage() {
+    fotoFile = null; previewSrc = "";
+    document.getElementById("fotoInput").value = "";
+    document.getElementById("previewContainer").style.display = 'none';
+  }
+
+  function openPreview(src)  { document.getElementById("modalImg").src = src; document.getElementById("imageModal").style.display = "flex"; document.body.style.overflow = "hidden"; }
+  function closePreview()    { document.getElementById("imageModal").style.display = "none"; document.body.style.overflow = "auto"; }
 </script>
 </body>
 </html>

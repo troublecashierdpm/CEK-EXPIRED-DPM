@@ -455,9 +455,6 @@
   var perPage    = 30;
   var BATCH      = 1000;
 
-  // PERBAIKAN: Menghapus "deskripsi" yang memicu Error, menggantinya dengan "deskripsi_barang" sesuai skema Supabase Anda.
-  var LIST_COLS = 'id, dept, jenis_barang, deskripsi_barang, barcode, gondola, selving, qty, input_date, expired_date, link_foto, remarks';
-
   var DEPTS = ['GROCERY','DND','GMS','HBC','DELSUSBAK','PRODUCE','NONFOOD'];
   var VALID_NIKS = ['2510009','1612004','2410035','1503008','1504215','2408182','2509005','2305008','1508079','2303031','2510007','1508067','2410040','1502002','2504040','2305014','2510008'];
 
@@ -529,7 +526,7 @@
 
       if (resExpired.error) {
         console.error('data_expired gagal:', resExpired.error);
-        showErrBanner('Gagal memuat data: ' + (resExpired.error.message || JSON.stringify(resExpired.error)));
+        showErrBanner('Gagal memuat data. Cek penamaan kolom tabel Supabase Anda.');
         document.getElementById('tblBody').innerHTML = '<tr><td class="tbl-state" colspan="12">Gagal memuat data. Lihat pesan error di atas.</td></tr>';
         setStatus('');
         return;
@@ -537,10 +534,15 @@
 
       var today = new Date(); today.setHours(0,0,0,0);
       var rawData = resExpired.data || [];
+      
       rawData.forEach(function(r) {
-        var limitHari = getLimit(r.dept, r.jenis_barang || '');
-        if (r.expired_date) {
-          var expD = new Date(r.expired_date); expD.setHours(0,0,0,0);
+        // Trik Anti-Crash (Support Header CSV yang tidak rapi)
+        var kategori = r.jenis_barang || r.kategori || r['jenis barang'] || '';
+        var limitHari = getLimit(r.dept, kategori);
+        var expStr = r.expired_date || r.tgl_expired || r['expired date'];
+
+        if (expStr) {
+          var expD = new Date(expStr); expD.setHours(0,0,0,0);
           var diff = Math.ceil((expD - today) / 86400000);
           r.rt_status = diff < 0 ? 'EXPIRED' : (limitHari > 0 && diff <= limitHari ? 'WARNING' : 'AMAN');
         } else {
@@ -553,14 +555,18 @@
       updateStats();
       updateDeptChips();
       applyFilter();
+    }).catch(function(e) {
+      btn.classList.remove('spinning');
+      showErrBanner('Kesalahan Fatal: ' + e.message);
     });
   }
 
   function fetchAllRows() {
     var allRows = [], from = 0;
     function fetchBatch() {
-      return db.from('data_expired').select(LIST_COLS)
-        .order('expired_date', { ascending: true })
+      // PERBAIKAN: Memakai Select '*' dan Order berdasarkan 'id' agar Anti-Crash jika CSV salah
+      return db.from('data_expired').select('*')
+        .order('id', { ascending: true })
         .range(from, from + BATCH - 1)
         .then(function(res) {
           if (res.error) throw res.error;
@@ -617,9 +623,12 @@
     filtered = allData.filter(function(r) {
       var okDept   = activeDept === 'ALL' || r.dept === activeDept;
       var okStatus = status === 'ALL' || r.rt_status === status;
+      var deskripsiCari = r.deskripsi_barang || r.deskripsi || r['deskripsi barang'] || '';
+      var barcodeCari = r.barcode || r.sku || r['barcode/sku'] || '';
+      
       var okSearch = !search
-        || (r.deskripsi_barang||'').toLowerCase().indexOf(search) > -1
-        || (r.barcode||'').toLowerCase().indexOf(search) > -1
+        || deskripsiCari.toLowerCase().indexOf(search) > -1
+        || barcodeCari.toLowerCase().indexOf(search) > -1
         || (r.dept||'').toLowerCase().indexOf(search) > -1;
       return okDept && okStatus && okSearch;
     });
@@ -627,10 +636,18 @@
     var parts = sortVal.split('_');
     var col = parts.slice(0,-1).join('_');
     var dir = parts[parts.length - 1];
+    
+    // Sortir Javascript
     filtered.sort(function(a, b) {
-      var va = a[col] || '', vb = b[col] || '';
-      if (col === 'qty') { va = parseInt(va)||0; vb = parseInt(vb)||0; }
-      return dir === 'asc' ? (va < vb ? -1 : va > vb ? 1 : 0) : (va > vb ? -1 : va < vb ? 1 : 0);
+      var realColA = a.expired_date || a.tgl_expired || a['expired date'];
+      var realColB = b.expired_date || b.tgl_expired || b['expired date'];
+      
+      if(col !== 'expired_date') {
+        realColA = a[col] || ''; realColB = b[col] || '';
+      }
+      
+      if (col === 'qty') { realColA = parseInt(realColA)||0; realColB = parseInt(realColB)||0; }
+      return dir === 'asc' ? (realColA < realColB ? -1 : realColA > realColB ? 1 : 0) : (realColA > realColB ? -1 : realColA < realColB ? 1 : 0);
     });
 
     curPage = 1;
@@ -674,11 +691,13 @@
 
     var html = '';
     rows.forEach(function(r, idx) {
-      var nama     = r.deskripsi_barang || '-';
-      var expStr   = r.expired_date || '-';
+      var nama     = r.deskripsi_barang || r.deskripsi || r['deskripsi barang'] || '-';
+      var expStr   = r.expired_date || r.tgl_expired || r['expired date'] || '-';
       var fotoUrl  = r.link_foto || '';
-      var limitHari = getLimit(r.dept, r.jenis_barang || '');
-      var domRowId  = (r.id || r.barcode || 'idx-' + idx).toString().replace(/\s+/g, '-');
+      var barcodeStr = r.barcode || r.sku || r['barcode/sku'] || '-';
+      var kategori = r.jenis_barang || r.kategori || r['jenis barang'] || '';
+      var limitHari = getLimit(r.dept, kategori);
+      var domRowId  = (r.id || barcodeStr || 'idx-' + idx).toString().replace(/\s+/g, '-');
 
       var sisaTxt = '-', sisaCls = '';
       if (expStr !== '-') {
@@ -694,7 +713,7 @@
       }
 
       var imgHtml, fotoClass, fotoClick;
-      var parsedFotoUrl = driveToImg(fotoUrl) || fotoUrl; // Coba parse link gdrive (jika ada sisa)
+      var parsedFotoUrl = driveToImg(fotoUrl) || fotoUrl;
       if (parsedFotoUrl) {
         imgHtml  = '<img src="' + parsedFotoUrl.replace(/"/g,'&quot;') + '" loading="lazy" onerror="this.parentNode.innerHTML=\'📦\';this.parentNode.classList.remove(\'has-foto\')">';
         fotoClass = ' has-foto';
@@ -703,18 +722,18 @@
         imgHtml = '📦'; fotoClass = ''; fotoClick = '';
       }
 
-      var barcodeEsc = String(r.barcode || '').replace(/'/g,"\\'");
+      var barcodeEsc = String(barcodeStr).replace(/'/g,"\\'");
       var namaEsc    = nama.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
       html += '<tr id="row-' + domRowId + '">'
-        + '<td><input type="checkbox" class="cb-row" value="' + domRowId + '" data-barcode="' + (r.barcode||'') + '" data-desc="' + namaEsc + '" onchange="onCbChange()"></td>'
+        + '<td><input type="checkbox" class="cb-row" value="' + domRowId + '" data-barcode="' + barcodeEsc + '" data-desc="' + namaEsc + '" onchange="onCbChange()"></td>'
         + '<td><div class="td-foto-wrap' + fotoClass + '"' + fotoClick + '>' + imgHtml + '</div></td>'
         + '<td><span class="badge-dept-tbl">' + (r.dept||'-') + '</span></td>'
         + '<td class="td-nama" title="' + nama + '">' + nama + '</td>'
-        + '<td class="td-mono">' + (r.barcode||'-') + '</td>'
+        + '<td class="td-mono">' + barcodeStr + '</td>'
         + '<td style="font-size:12px;white-space:nowrap;">' + (r.gondola||'-') + ' – ' + (r.selving||'-') + '</td>'
         + '<td style="font-weight:600;">' + (r.qty||'-') + '</td>'
-        + '<td class="td-mono">' + fmtDate(r.input_date) + '</td>'
+        + '<td class="td-mono">' + fmtDate(r.input_date || r['input date'] || '-') + '</td>'
         + '<td class="td-mono" style="white-space:nowrap;">' + fmtDate(expStr) + '</td>'
         + '<td><span class="' + sisaCls + '">' + sisaTxt + '</span>'
         + (limitHari > 0 ? '<br><span style="font-size:9px;color:#94a3b8;">limit ' + limitHari + 'h</span>' : '') + '</td>'
@@ -802,7 +821,9 @@
       else showToast('🗑️ ' + pendingDeletes.length + ' data berhasil dihapus', 'ok');
       pendingDeletes.forEach(function(d) {
         allData = allData.filter(function(r) {
-          return !(r.barcode == d.barcode && r.deskripsi_barang == d.desc);
+          var bc = r.barcode || r.sku || r['barcode/sku'] || '';
+          var nm = r.deskripsi_barang || r.deskripsi || r['deskripsi barang'] || '';
+          return !(bc == d.barcode && nm == d.desc);
         });
       });
       pendingDeletes = [];

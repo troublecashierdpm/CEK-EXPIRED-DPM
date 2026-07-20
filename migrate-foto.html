@@ -170,10 +170,9 @@ function testConnection() {
   db = initClient();
   if (!db) return;
   var c = cfg();
-  logLine('Menghitung baris dengan ' + c.colB64 + ' terisi & ' + c.colUrl + ' kosong...');
+  logLine('Menghitung baris dengan ' + c.colB64 + ' terisi (estimasi awal)...');
   db.from(c.tbl).select('id', { count: 'exact', head: true })
     .not(c.colB64, 'is', null)
-    .or(c.colUrl + '.is.null,' + c.colUrl + '.eq.""')
     .then(function(res) {
       if (res.error) {
         logLine('Error: ' + res.error.message, 'log-err');
@@ -184,10 +183,10 @@ function testConnection() {
       stats.done = 0; stats.fail = 0;
       updateStatUI();
       if (stats.total === 0) {
-        logLine('✅ Tidak ada data yang perlu dimigrasi. Semua foto sudah pakai Storage.', 'log-ok');
+        logLine('✅ Tidak ada baris dengan ' + c.colB64 + ' terisi.', 'log-ok');
         document.getElementById('btnStart').disabled = true;
       } else {
-        logLine('Ditemukan ' + stats.total + ' baris perlu dimigrasi.', 'log-ok');
+        logLine('Ditemukan ' + stats.total + ' baris dengan ' + c.colB64 + ' terisi (sebagian mungkin sudah punya ' + c.colUrl + ', akan otomatis dilewati saat scan).', 'log-ok');
         document.getElementById('btnStart').disabled = false;
       }
     })
@@ -230,9 +229,10 @@ function b64ToCompressedBlob(b64String) {
 function startMigration() {
   if (!db) { db = initClient(); if (!db) return; }
   running = true;
+  lastScannedId = 0; // always rescan from the beginning to catch any missed rows
   document.getElementById('btnStart').disabled = true;
   document.getElementById('btnStop').disabled = false;
-  logLine('Migrasi dimulai...', 'log-ok');
+  logLine('Migrasi dimulai (scan berurutan dari ID terkecil)...', 'log-ok');
   processNextBatch();
 }
 
@@ -243,13 +243,20 @@ function stopMigration() {
   logLine('Migrasi dihentikan oleh user.', 'log-warn');
 }
 
+var lastScannedId = 0; // cursor for deterministic id-ordered scanning
+
+function isBlank(v) {
+  return v === null || v === undefined || String(v).trim() === '';
+}
+
 function processNextBatch() {
   if (!running) return;
   var c = cfg();
 
-  db.from(c.tbl).select('id, ' + c.colB64 + ', barcode')
+  db.from(c.tbl).select('id, ' + c.colB64 + ', ' + c.colUrl + ', barcode')
     .not(c.colB64, 'is', null)
-    .or(c.colUrl + '.is.null,' + c.colUrl + '.eq.""')
+    .gt('id', lastScannedId)
+    .order('id', { ascending: true })
     .limit(c.batch)
     .then(function(res) {
       if (res.error) {
@@ -259,10 +266,11 @@ function processNextBatch() {
       }
       var rows = res.data || [];
       if (rows.length === 0) {
-        logLine('🎉 Selesai! Semua baris sudah dimigrasi.', 'log-ok');
+        logLine('🎉 Selesai! Semua baris (ID > ' + lastScannedId + ') sudah discan.', 'log-ok');
         stopMigration();
         return;
       }
+      lastScannedId = rows[rows.length - 1].id;
       processRowsSequentially(rows, 0, c);
     })
     .catch(function(e) {
@@ -277,6 +285,13 @@ function processRowsSequentially(rows, idx, c) {
 
   var row = rows[idx];
   var b64 = row[c.colB64];
+  var existingUrl = row[c.colUrl];
+
+  if (!isBlank(existingUrl)) {
+    logLine('ID ' + row.id + ': dilewati — ' + c.colUrl + ' sudah terisi ("' + existingUrl + '").', 'log-warn');
+    processRowsSequentially(rows, idx + 1, c);
+    return;
+  }
 
   if (!b64 || typeof b64 !== 'string' || b64.length < 20) {
     logLine('ID ' + row.id + ': base64 kosong/tidak valid, dilewati.', 'log-warn');

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migrasi Foto Base64 → Supabase Storage</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: #f8fafc; color: #1e293b; margin: 0; padding: 20px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #64748b; font-size: 13px; margin-bottom: 20px; }
+  .card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+    padding: 18px 20px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .card h2 { font-size: 14px; margin: 0 0 10px; color: #4361ee; }
+  label { display:block; font-size:12px; font-weight:600; color:#64748b; margin-bottom:4px; }
+  input[type=text], input[type=number] {
+    width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+    font-size: 13px; margin-bottom: 12px; font-family: inherit;
+  }
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+  button {
+    font-family: inherit; font-weight: 700; font-size: 13px; border: none;
+    border-radius: 10px; padding: 11px 18px; cursor: pointer; margin-right: 8px;
+  }
+  .btn-primary { background: #4361ee; color: #fff; }
+  .btn-primary:disabled { background: #c7d2fe; cursor: not-allowed; }
+  .btn-danger { background: #ef476f; color: #fff; }
+  .btn-danger:disabled { background: #fbcfe0; cursor: not-allowed; }
+  .btn-ghost { background: #f1f5f9; color: #475569; }
+  .stat-row { display: flex; gap: 10px; margin: 14px 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 90px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; text-align: center; }
+  .stat b { display: block; font-size: 20px; }
+  .stat span { font-size: 10px; color: #64748b; text-transform: uppercase; }
+  .bar-wrap { background: #e2e8f0; border-radius: 20px; height: 10px; overflow: hidden; margin: 10px 0; }
+  .bar { height: 100%; background: linear-gradient(90deg,#4361ee,#06d6a0); width: 0%; transition: width 0.2s; }
+  #log {
+    background: #0f172a; color: #d1fae5; font-family: 'Courier New', monospace;
+    font-size: 11.5px; border-radius: 10px; padding: 12px; height: 260px;
+    overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+  }
+  .log-err { color: #fca5a5; }
+  .log-ok  { color: #6ee7b7; }
+  .log-warn{ color: #fcd34d; }
+  .badge { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; }
+  .badge.ok   { background:#d1fae5; color:#059669; }
+  .badge.warn { background:#fef3c7; color:#92400e; }
+  .note { font-size: 11.5px; color: #64748b; line-height:1.6; margin-top: 6px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔄 Migrasi Foto: Base64 → Supabase Storage</h1>
+  <div class="sub">Tool sekali-pakai untuk memindahkan foto lama dari kolom <code>foto_base64</code> ke bucket Storage, lalu mengisi kolom <code>link_foto</code>.</div>
+
+  <div class="card">
+    <h2>1. Konfigurasi</h2>
+    <label>Supabase URL</label>
+    <input type="text" id="supaUrl" value="https://tplmwztdiccknphhxbqo.supabase.co">
+    <label>Supabase Key (publishable/anon)</label>
+    <input type="text" id="supaKey" value="sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf">
+    <div class="row">
+      <div>
+        <label>Nama Tabel</label>
+        <input type="text" id="tblName" value="data_expired">
+      </div>
+      <div>
+        <label>Nama Bucket Storage</label>
+        <input type="text" id="bucketName" value="inventory-photos">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Kolom Base64 (sumber)</label>
+        <input type="text" id="colBase64" value="foto_base64">
+      </div>
+      <div>
+        <label>Kolom URL Foto (tujuan)</label>
+        <input type="text" id="colUrl" value="link_foto">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Ukuran per Batch</label>
+        <input type="number" id="batchSize" value="10" min="1" max="50">
+      </div>
+      <div>
+        <label style="margin-top:26px;">
+          <input type="checkbox" id="clearBase64" checked style="width:auto;margin-right:6px;">
+          Kosongkan foto_base64 setelah sukses
+        </label>
+      </div>
+    </div>
+    <button class="btn-ghost" onclick="testConnection()">🔌 Tes Koneksi & Hitung Data</button>
+  </div>
+
+  <div class="card">
+    <h2>2. Ringkasan</h2>
+    <div class="stat-row">
+      <div class="stat"><b id="stTotal">—</b><span>Perlu Migrasi</span></div>
+      <div class="stat"><b id="stDone">0</b><span>Selesai</span></div>
+      <div class="stat"><b id="stFail">0</b><span>Gagal</span></div>
+      <div class="stat"><b id="stRemain">—</b><span>Sisa</span></div>
+    </div>
+    <div class="bar-wrap"><div class="bar" id="progBar"></div></div>
+    <button class="btn-primary" id="btnStart" onclick="startMigration()" disabled>▶ Mulai Migrasi</button>
+    <button class="btn-danger" id="btnStop" onclick="stopMigration()" disabled>⏹ Hentikan</button>
+    <div class="note">Proses berjalan per-baris: decode base64 → upload ke Storage → update <code>link_foto</code> → (opsional) kosongkan <code>foto_base64</code>. Aman dihentikan &amp; dilanjut kapan saja — baris yang sudah selesai tidak akan diproses ulang.</div>
+  </div>
+
+  <div class="card">
+    <h2>3. Log Proses</h2>
+    <div id="log">Menunggu... klik "Tes Koneksi &amp; Hitung Data" dulu.</div>
+  </div>
+</div>
+
+<script>
+var db = null;
+var running = false;
+var stats = { total: 0, done: 0, fail: 0 };
+
+function logLine(msg, cls) {
+  var el = document.getElementById('log');
+  var line = document.createElement('div');
+  if (cls) line.className = cls;
+  var t = new Date().toLocaleTimeString('id-ID');
+  line.textContent = '[' + t + '] ' + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function cfg() {
+  return {
+    tbl: document.getElementById('tblName').value.trim(),
+    bucket: document.getElementById('bucketName').value.trim(),
+    colB64: document.getElementById('colBase64').value.trim(),
+    colUrl: document.getElementById('colUrl').value.trim(),
+    batch: parseInt(document.getElementById('batchSize').value) || 10,
+    clearB64: document.getElementById('clearBase64').checked
+  };
+}
+
+function initClient() {
+  var url = document.getElementById('supaUrl').value.trim();
+  var key = document.getElementById('supaKey').value.trim();
+  if (!window.supabase || !window.supabase.createClient) {
+    logLine('Gagal load library Supabase JS.', 'log-err');
+    return null;
+  }
+  return window.supabase.createClient(url, key);
+}
+
+function updateStatUI() {
+  document.getElementById('stTotal').textContent = stats.total;
+  document.getElementById('stDone').textContent = stats.done;
+  document.getElementById('stFail').textContent = stats.fail;
+  document.getElementById('stRemain').textContent = Math.max(0, stats.total - stats.done - stats.fail);
+  var pct = stats.total > 0 ? Math.round(((stats.done + stats.fail) / stats.total) * 100) : 0;
+  document.getElementById('progBar').style.width = pct + '%';
+}
+
+function testConnection() {
+  db = initClient();
+  if (!db) return;
+  var c = cfg();
+  logLine('Menghitung baris dengan ' + c.colB64 + ' terisi & ' + c.colUrl + ' kosong...');
+  db.from(c.tbl).select('id', { count: 'exact', head: true })
+    .not(c.colB64, 'is', null)
+    .or(c.colUrl + '.is.null,' + c.colUrl + '.eq.""')
+    .then(function(res) {
+      if (res.error) {
+        logLine('Error: ' + res.error.message, 'log-err');
+        logLine('Cek: apakah RLS policy tabel mengizinkan SELECT/UPDATE dengan key ini?', 'log-warn');
+        return;
+      }
+      stats.total = res.count || 0;
+      stats.done = 0; stats.fail = 0;
+      updateStatUI();
+      if (stats.total === 0) {
+        logLine('✅ Tidak ada data yang perlu dimigrasi. Semua foto sudah pakai Storage.', 'log-ok');
+        document.getElementById('btnStart').disabled = true;
+      } else {
+        logLine('Ditemukan ' + stats.total + ' baris perlu dimigrasi.', 'log-ok');
+        document.getElementById('btnStart').disabled = false;
+      }
+    })
+    .catch(function(e) { logLine('Error koneksi: ' + e.message, 'log-err'); });
+}
+
+function b64ToBlob(b64String) {
+  var pure = b64String;
+  var mime = 'image/jpeg';
+  var match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/.exec(b64String);
+  if (match) { mime = match[1]; pure = match[2]; }
+  var byteChars = atob(pure);
+  var byteNumbers = new Array(byteChars.length);
+  for (var i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  var byteArray = new Uint8Array(byteNumbers);
+  return new Blob([byteArray], { type: mime });
+}
+
+function startMigration() {
+  if (!db) { db = initClient(); if (!db) return; }
+  running = true;
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnStop').disabled = false;
+  logLine('Migrasi dimulai...', 'log-ok');
+  processNextBatch();
+}
+
+function stopMigration() {
+  running = false;
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStop').disabled = true;
+  logLine('Migrasi dihentikan oleh user.', 'log-warn');
+}
+
+function processNextBatch() {
+  if (!running) return;
+  var c = cfg();
+
+  db.from(c.tbl).select('id, ' + c.colB64 + ', barcode')
+    .not(c.colB64, 'is', null)
+    .or(c.colUrl + '.is.null,' + c.colUrl + '.eq.""')
+    .limit(c.batch)
+    .then(function(res) {
+      if (res.error) {
+        logLine('Gagal ambil batch: ' + res.error.message, 'log-err');
+        stopMigration();
+        return;
+      }
+      var rows = res.data || [];
+      if (rows.length === 0) {
+        logLine('🎉 Selesai! Semua baris sudah dimigrasi.', 'log-ok');
+        stopMigration();
+        return;
+      }
+      processRowsSequentially(rows, 0, c);
+    })
+    .catch(function(e) {
+      logLine('Error batch: ' + e.message, 'log-err');
+      stopMigration();
+    });
+}
+
+function processRowsSequentially(rows, idx, c) {
+  if (!running) return;
+  if (idx >= rows.length) { processNextBatch(); return; }
+
+  var row = rows[idx];
+  var b64 = row[c.colB64];
+
+  if (!b64 || typeof b64 !== 'string' || b64.length < 20) {
+    logLine('ID ' + row.id + ': base64 kosong/tidak valid, dilewati.', 'log-warn');
+    stats.fail++; updateStatUI();
+    processRowsSequentially(rows, idx + 1, c);
+    return;
+  }
+
+  var blob;
+  try { blob = b64ToBlob(b64); }
+  catch (e) {
+    logLine('ID ' + row.id + ': gagal decode base64 (' + e.message + ')', 'log-err');
+    stats.fail++; updateStatUI();
+    processRowsSequentially(rows, idx + 1, c);
+    return;
+  }
+
+  var safeBarcode = String(row.barcode || 'noBarcode').replace(/[^a-zA-Z0-9]/g, '');
+  var filename = 'migrated_' + safeBarcode + '_' + row.id + '_' + Date.now() + '.jpg';
+
+  db.storage.from(c.bucket).upload(filename, blob, { contentType: blob.type || 'image/jpeg', upsert: true })
+    .then(function(upRes) {
+      if (upRes.error) throw upRes.error;
+      var pub = db.storage.from(c.bucket).getPublicUrl(filename);
+      var publicUrl = pub.data ? pub.data.publicUrl : null;
+      if (!publicUrl) throw new Error('Gagal ambil public URL');
+
+      var updatePayload = {};
+      updatePayload[c.colUrl] = publicUrl;
+      if (c.clearB64) updatePayload[c.colB64] = null;
+
+      return db.from(c.tbl).update(updatePayload).eq('id', row.id).then(function(updRes) {
+        if (updRes.error) throw updRes.error;
+        logLine('ID ' + row.id + ': ✅ berhasil → ' + publicUrl, 'log-ok');
+        stats.done++; updateStatUI();
+      });
+    })
+    .catch(function(e) {
+      logLine('ID ' + row.id + ': ❌ gagal (' + (e.message || e) + ')', 'log-err');
+      stats.fail++; updateStatUI();
+    })
+    .then(function() {
+      processRowsSequentially(rows, idx + 1, c);
+    });
+}
+</script>
+</body>
+</html>

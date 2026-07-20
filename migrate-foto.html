@@ -194,16 +194,37 @@ function testConnection() {
     .catch(function(e) { logLine('Error koneksi: ' + e.message, 'log-err'); });
 }
 
-function b64ToBlob(b64String) {
-  var pure = b64String;
-  var mime = 'image/jpeg';
-  var match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/.exec(b64String);
-  if (match) { mime = match[1]; pure = match[2]; }
-  var byteChars = atob(pure);
-  var byteNumbers = new Array(byteChars.length);
-  for (var i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
-  var byteArray = new Uint8Array(byteNumbers);
-  return new Blob([byteArray], { type: mime });
+function b64ToDataUrl(b64String) {
+  // Normalize into a proper data: URL so it can be loaded into an <img>.
+  if (/^data:image\//.test(b64String)) return b64String;
+  return 'data:image/jpeg;base64,' + b64String;
+}
+
+// Compress like index.html does for new uploads: max 800px, JPEG quality 0.70.
+// Returns a Promise<Blob>.
+function b64ToCompressedBlob(b64String) {
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    img.onload = function() {
+      var MAX = 800;
+      var w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+      if (!w || !h) { reject(new Error('Dimensi gambar tidak valid (0px)')); return; }
+
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      canvas.toBlob(function(blob) {
+        if (!blob) { reject(new Error('Gagal kompres ke JPEG (toBlob null)')); return; }
+        resolve(blob);
+      }, 'image/jpeg', 0.70);
+    };
+    img.onerror = function() { reject(new Error('Gagal load base64 sebagai gambar (data korup/format tidak didukung)')); };
+    img.src = b64ToDataUrl(b64String);
+  });
 }
 
 function startMigration() {
@@ -264,34 +285,33 @@ function processRowsSequentially(rows, idx, c) {
     return;
   }
 
-  var blob;
-  try { blob = b64ToBlob(b64); }
-  catch (e) {
-    logLine('ID ' + row.id + ': gagal decode base64 (' + e.message + ')', 'log-err');
-    stats.fail++; updateStatUI();
-    processRowsSequentially(rows, idx + 1, c);
-    return;
-  }
+  var origKB = Math.round((b64.length * 0.75) / 1024); // rough estimate of raw base64 size
 
-  var safeBarcode = String(row.barcode || 'noBarcode').replace(/[^a-zA-Z0-9]/g, '');
-  var filename = 'migrated_' + safeBarcode + '_' + row.id + '_' + Date.now() + '.jpg';
+  b64ToCompressedBlob(b64)
+    .then(function(blob) {
+      var newKB = Math.round(blob.size / 1024);
+      logLine('ID ' + row.id + ': dikompres ' + origKB + 'KB → ' + newKB + 'KB, mengupload...');
 
-  db.storage.from(c.bucket).upload(filename, blob, { contentType: blob.type || 'image/jpeg', upsert: true })
-    .then(function(upRes) {
-      if (upRes.error) throw upRes.error;
-      var pub = db.storage.from(c.bucket).getPublicUrl(filename);
-      var publicUrl = pub.data ? pub.data.publicUrl : null;
-      if (!publicUrl) throw new Error('Gagal ambil public URL');
+      var safeBarcode = String(row.barcode || 'noBarcode').replace(/[^a-zA-Z0-9]/g, '');
+      var filename = 'migrated_' + safeBarcode + '_' + row.id + '_' + Date.now() + '.jpg';
 
-      var updatePayload = {};
-      updatePayload[c.colUrl] = publicUrl;
-      if (c.clearB64) updatePayload[c.colB64] = null;
+      return db.storage.from(c.bucket).upload(filename, blob, { contentType: 'image/jpeg', upsert: true })
+        .then(function(upRes) {
+          if (upRes.error) throw upRes.error;
+          var pub = db.storage.from(c.bucket).getPublicUrl(filename);
+          var publicUrl = pub.data ? pub.data.publicUrl : null;
+          if (!publicUrl) throw new Error('Gagal ambil public URL');
 
-      return db.from(c.tbl).update(updatePayload).eq('id', row.id).then(function(updRes) {
-        if (updRes.error) throw updRes.error;
-        logLine('ID ' + row.id + ': ✅ berhasil → ' + publicUrl, 'log-ok');
-        stats.done++; updateStatUI();
-      });
+          var updatePayload = {};
+          updatePayload[c.colUrl] = publicUrl;
+          if (c.clearB64) updatePayload[c.colB64] = null;
+
+          return db.from(c.tbl).update(updatePayload).eq('id', row.id).then(function(updRes) {
+            if (updRes.error) throw updRes.error;
+            logLine('ID ' + row.id + ': ✅ berhasil → ' + publicUrl, 'log-ok');
+            stats.done++; updateStatUI();
+          });
+        });
     })
     .catch(function(e) {
       logLine('ID ' + row.id + ': ❌ gagal (' + (e.message || e) + ')', 'log-err');

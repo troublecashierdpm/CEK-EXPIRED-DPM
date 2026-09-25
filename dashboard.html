@@ -663,6 +663,7 @@
       var expStr    = r.expired_date || '-';
       var jenis     = r.jenis_barang || '';
       var limitHari = getLimit(r.dept, jenis);
+      var rowId     = (r.id !== null && r.id !== undefined) ? String(r.id) : '';
       var domRowId  = String(r.id || r.barcode || 'i' + idx).replace(/[^a-zA-Z0-9\-_]/g, '-');
 
       // Hitung sisa hari
@@ -697,7 +698,7 @@
 
       html += '<tr id="row-' + domRowId + '">'
         + '<td><input type="checkbox" class="cb-row" value="' + domRowId
-        +   '" data-barcode="' + barcodeEsc + '" data-desc="' + namaEsc
+        +   '" data-id="' + rowId + '" data-barcode="' + barcodeEsc + '" data-desc="' + namaEsc
         +   '" onchange="onCbChange()"></td>'
         + '<td><div class="td-foto-wrap' + fotoClass + '"' + fotoClick + '>' + imgHtml + '</div></td>'
         + '<td><span class="badge-dept-tbl">' + (r.dept||'-') + '</span></td>'
@@ -711,7 +712,7 @@
         + (limitHari > 0 ? '<br><span style="font-size:9px;color:#94a3b8;">limit ' + limitHari + 'h</span>' : '')
         + '</td>'
         + '<td><span class="chip-status ' + r._status + '">' + r._status + '</span></td>'
-        + '<td><button class="btn-del-row" onclick="askDelete(\'' + barcodeEsc + '\',\'' + namaEsc + '\')" title="Hapus">🗑️</button></td>'
+        + '<td><button class="btn-del-row" onclick="askDelete(\'' + rowId + '\',\'' + barcodeEsc + '\',\'' + namaEsc + '\')" title="Hapus">🗑️</button></td>'
         + '</tr>';
     });
     body.innerHTML = html;
@@ -744,8 +745,8 @@
   /* ── DELETE ── */
   var pendingDeletes = [];
 
-  function askDelete(barcode, desc) {
-    pendingDeletes = [{ barcode: barcode, desc: desc }];
+  function askDelete(id, barcode, desc) {
+    pendingDeletes = [{ id: id, barcode: barcode, desc: desc }];
     document.getElementById('confirmTitle').textContent = 'Hapus Data Ini?';
     document.getElementById('confirmMsg').innerHTML = '<strong>' + desc + '</strong><br><br>Data yang dihapus tidak bisa dikembalikan.';
     openConfirm();
@@ -756,7 +757,7 @@
     if (!cbs.length) return;
     pendingDeletes = [];
     cbs.forEach(function(cb) {
-      pendingDeletes.push({ barcode: cb.getAttribute('data-barcode'), desc: cb.getAttribute('data-desc') });
+      pendingDeletes.push({ id: cb.getAttribute('data-id'), barcode: cb.getAttribute('data-barcode'), desc: cb.getAttribute('data-desc') });
     });
     document.getElementById('confirmTitle').textContent = 'Hapus ' + cbs.length + ' Data?';
     document.getElementById('confirmMsg').textContent   = cbs.length + ' item yang dipilih akan dihapus permanen.';
@@ -787,20 +788,29 @@
   function execDelete() {
     if (!pendingDeletes.length || !db) return;
     document.getElementById('confirmOkBtn').disabled = true;
+    var total = pendingDeletes.length;
     var promises = pendingDeletes.map(function(item) {
-      return db.from('data_expired').delete()
-        .eq('barcode', item.barcode).eq('deskripsi_barang', item.desc);
+      if (item.id) {
+        return db.from('data_expired').delete().eq('id', item.id);
+      }
+      var q = db.from('data_expired').delete().eq('barcode', item.barcode);
+      if (item.desc === '-' || item.desc === '') {
+        return q.or('deskripsi_barang.is.null,deskripsi_barang.eq.');
+      }
+      return q.eq('deskripsi_barang', item.desc);
     });
     Promise.all(promises).then(function(results) {
       var errors = results.filter(function(r){ return r.error; });
       closeConfirm();
       showToast(errors.length > 0
-        ? '❌ Sebagian gagal dihapus (' + errors.length + ' error)'
-        : '🗑️ ' + pendingDeletes.length + ' data berhasil dihapus',
+        ? '❌ ' + errors.length + ' dari ' + total + ' gagal dihapus'
+        : '🗑️ ' + total + ' data berhasil dihapus',
         errors.length > 0 ? 'err' : 'ok');
       pendingDeletes.forEach(function(d) {
         allData = allData.filter(function(r) {
-          return !(String(r.barcode) === String(d.barcode) && r.deskripsi_barang === d.desc);
+          if (d.id && r.id !== null && r.id !== undefined) return String(r.id) !== String(d.id);
+          var descVal = r.deskripsi_barang || '-';
+          return !(String(r.barcode) === String(d.barcode) && descVal === d.desc);
         });
       });
       pendingDeletes = [];

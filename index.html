@@ -196,6 +196,7 @@
       <div class="btn-dept" onclick="selectDept('DELSUSBAK', this)">DELSUSBAK</div>
       <div class="btn-dept" onclick="selectDept('PRODUCE', this)">PRODUCE</div>
       <div class="btn-dept" onclick="selectDept('NONFOOD', this)">NONFOOD</div>
+      <div class="btn-dept" onclick="selectDept('RTC', this)">RTC</div>
     </div>
     <div class="dept-hint" id="deptHint">⚠️ Pilih salah satu departement terlebih dahulu!</div>
     <label>Kategori Produk <span style="color:var(--danger)">*</span></label>
@@ -309,7 +310,8 @@
     { dept: "NONFOOD",   kategori: "STATIONERY", limit: 120 },
     { dept: "DELSUSBAK", kategori: "DELICA",     limit: 1   },
     { dept: "DELSUSBAK", kategori: "SUSHI",      limit: 1   },
-    { dept: "DELSUSBAK", kategori: "BAKERY",     limit: 3   }
+    { dept: "DELSUSBAK", kategori: "BAKERY",     limit: 3   },
+    { dept: "RTC",       kategori: "GROCERY",    limit: 15  }
   ];
 
   function showToast(msg, type, dur) {

@@ -282,6 +282,9 @@
     <button class="btn-reload" id="btnReload" onclick="loadAll()">
       <span class="ico">↻</span><span class="spin">◌</span> Refresh
     </button>
+    <button class="btn-reload" style="background:#64748b;" onclick="exportData()">💾 Backup</button>
+    <button class="btn-reload" style="background:#0ea5e9;" onclick="document.getElementById('importFile').click()">📂 Restore</button>
+    <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
     <span id="loadStatus" style="font-size:11px;color:#94a3b8;"></span>
     <a class="btn-back" href="index.html">✏️ Input Barang</a>
   </div>
@@ -496,6 +499,66 @@
     if (!s || s === '-') return '-';
     var d = new Date(s);
     return isNaN(d) ? s : d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  /* ── BACKUP ── */
+  function exportData() {
+    if (!allData || !allData.length) {
+      showToast('Tidak ada data untuk dibackup.', 'err');
+      return;
+    }
+    var jsonStr = JSON.stringify(allData, null, 2);
+    var blob = new Blob([jsonStr], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'backup_expired_dpm_' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Backup berhasil diunduh.', 'ok');
+  }
+
+  function importData(event) {
+    var file = event.target.files[0];
+    if (!file || !db) return;
+    if (!confirm('Peringatan: Data dari file backup akan ditambahkan ke database. Lanjutkan?')) {
+      event.target.value = '';
+      return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var items = JSON.parse(e.target.result);
+        if (!Array.isArray(items)) throw new Error('Format file tidak valid (bukan array).');
+
+        // Bersihkan field tambahan & id (jika ingin insert baru tanpa konflik)
+        var cleaned = items.map(function(item) {
+          var copy = {};
+          var keys = COLS.split(',').map(function(s){ return s.trim(); });
+          keys.forEach(function(k) {
+            if (k !== 'id') copy[k] = item[k];
+          });
+          return copy;
+        });
+
+        setStatus('Restoring ' + cleaned.length + ' item...');
+        db.from('data_expired').insert(cleaned).then(function(res) {
+          if (res.error) throw res.error;
+          showToast('✅ Berhasil restore ' + cleaned.length + ' data!', 'ok');
+          loadAll();
+        }).catch(function(err) {
+          console.error(err);
+          showToast('❌ Gagal restore: ' + (err.message || 'Error database'), 'err');
+        });
+      } catch(err) {
+        alert('Gagal membaca file: ' + err.message);
+      }
+      event.target.value = '';
+    };
+    reader.readAsText(file);
   }
 
   /* ── LOAD DATA ── */

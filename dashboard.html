@@ -509,10 +509,14 @@
   }
 
   function getLimit(dept, jenis) {
+    if (!jenis) return 0;
     for (var i = 0; i < masterData.length; i++) {
       var m = masterData[i];
-      if (m.dept === dept && (m.kategori === jenis || m.jenis_barang === jenis))
+      if (String(m.dept).trim().toUpperCase() === String(dept).trim().toUpperCase() && 
+         (String(m.kategori).trim().toUpperCase() === String(jenis).trim().toUpperCase() || 
+          String(m.jenis_barang).trim().toUpperCase() === String(jenis).trim().toUpperCase())) {
         return parseInt(m.limit) || 0;
+      }
     }
     return 0;
   }
@@ -628,6 +632,7 @@
         if (r.expired_date) {
           var expD = new Date(r.expired_date); expD.setHours(0,0,0,0);
           var diff = Math.ceil((expD - today) / 86400000);
+          console.log('DEBUG:', r.dept, jenis, 'limit:', limitHari, 'diff:', diff); // Tambahkan debug
           r._status = diff < 0 ? 'EXPIRED' : (limitHari > 0 && diff <= limitHari ? 'WARNING' : 'AMAN');
         } else {
           r._status = r.remarks || 'AMAN';

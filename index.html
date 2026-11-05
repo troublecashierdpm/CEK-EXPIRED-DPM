@@ -420,60 +420,50 @@
 
     if (typeof Html5Qrcode === 'undefined') {
       showToast('❌ Library scanner belum siap. Refresh halaman.', 't-error');
+      stopScanner();
       return;
     }
 
+    stopQrScanner(function() {
+      qrScanner = new Html5Qrcode('reader');
+
+      // Ambil format dari library secara dinamis
+      var formats = qrScanner.getSupportedFormats();
+
+      var config = {
+        fps: 10,
+        qrbox: { width: 280, height: 160 },
+        aspectRatio: 1.5,
+        formatsToSupport: formats,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+      };
+
+      qrScanner.start(
+        { facingMode: 'environment' },
+        config,
+        function(decodedText) { onBarcodeFound(decodedText); },
+        function() {} // silent fail - keep scanning
+      ).catch(function(err) {
+        console.error('Scanner error:', err);
+        showToast('❌ Gagal akses kamera. Pastikan izin kamera aktif.', 't-error', 5000);
+        stopScanner();
+      });
+    });
+  }
+
+  function stopQrScanner(callback) {
     if (qrScanner) {
       qrScanner.stop().then(function() {
         qrScanner.clear();
-        startQrScanner();
+        qrScanner = null;
+        if (callback) callback();
       }).catch(function() {
-        startQrScanner();
+        qrScanner = null;
+        if (callback) callback();
       });
     } else {
-      startQrScanner();
+      if (callback) callback();
     }
-  }
-
-  function startQrScanner() {
-    qrScanner = new Html5Qrcode('reader');
-
-    var formatsToSupport = [
-      Html5QrcodeScanner.SupportedFormats.EAN_13,
-      Html5QrcodeScanner.SupportedFormats.EAN_8,
-      Html5QrcodeScanner.SupportedFormats.UPC_A,
-      Html5QrcodeScanner.SupportedFormats.UPC_E,
-      Html5QrcodeScanner.SupportedFormats.CODE_39,
-      Html5QrcodeScanner.SupportedFormats.CODE_93,
-      Html5QrcodeScanner.SupportedFormats.CODE_128,
-      Html5QrcodeScanner.SupportedFormats.ITF,
-      Html5QrcodeScanner.SupportedFormats.CODABAR,
-      Html5QrcodeScanner.SupportedFormats.QR_CODE,
-      Html5QrcodeScanner.SupportedFormats.DATA_MATRIX
-    ];
-
-    var config = {
-      fps: 10,
-      qrbox: { width: 280, height: 160 },
-      aspectRatio: 1.5,
-      formatsToSupport: formatsToSupport,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    };
-
-    qrScanner.start(
-      { facingMode: 'environment' },
-      config,
-      function(decodedText, decodedResult) {
-        onBarcodeFound(decodedText);
-      },
-      function(errorMessage) {
-        // silent fail - keep scanning
-      }
-    ).catch(function(err) {
-      console.error('Scanner error:', err);
-      showToast('❌ Gagal akses kamera: ' + err, 't-error', 5000);
-      stopScanner();
-    });
   }
 
   function onBarcodeFound(text) {
@@ -486,11 +476,7 @@
 
   function stopScanner() {
     scanLoopActive = false;
-    if (qrScanner) {
-      qrScanner.stop().then(function() {
-        qrScanner.clear();
-      }).catch(function(e) { console.warn('Scanner stop error:', e); });
-    }
+    stopQrScanner();
     document.getElementById('reader').style.display = 'none';
     document.getElementById('btnStop').style.display = 'none';
   }

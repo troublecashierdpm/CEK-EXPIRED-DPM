@@ -876,7 +876,9 @@
         + (limitHari > 0 ? '<br><span style="font-size:9px;color:#94a3b8;">limit ' + limitHari + 'h</span>' : '')
         + '</td>'
         + '<td><span class="chip-status ' + r._status + '">' + r._status + '</span></td>'
-        + '<td><span class="chip-status" style="background:' + (String(r.remarks).toUpperCase() === 'TAKEOUT' ? '#64748b' : '#0ea5e9') + ';color:#fff;font-size:10px;">' + (String(r.remarks).toUpperCase() === 'TAKEOUT' ? 'Di Takeout' : 'Terdisplay') + '</span></td>'
+        + '<td><span class="chip-status" style="background:' + (String(r.remarks).toUpperCase() === 'TAKEOUT' ? '#64748b' : '#0ea5e9') + ';color:#fff;font-size:10px;">' + (String(r.remarks).toUpperCase() === 'TAKEOUT' ? 'Di Takeout' : 'Terdisplay') + '</span>'
+        + (r.takeout_date ? '<br><span style="font-size:9px;color:#64748b;">' + fmtDate(r.takeout_date) + '</span>' : '')
+        + '</td>'
         + '<td style="white-space:nowrap;">'
         + '<button class="btn-edit-row" onclick=\'openEditModal(' + JSON.stringify(r) + ')\' title="Edit Kategori/Data" style="background:#0ea5e9;color:#fff;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;margin-right:4px;font-size:11px;">✏️</button>'
         + '<button class="btn-del-row" onclick="askDelete(\'' + rowId + '\',\'' + barcodeEsc + '\',\'' + namaEsc + '\')" title="Hapus">🗑️</button>'

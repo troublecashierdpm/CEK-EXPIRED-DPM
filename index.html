@@ -223,6 +223,11 @@
         onclick="pickFromGallery()" title="Pilih dari Galeri">📂</button>
     </div>
 
+    <input type="file" id="iosCameraInput" accept="image/*" capture="environment" style="display:none">
+    <button id="btnIOSCamera" type="button" class="main-btn"
+      style="display:none;background-color:#4361ee;color:white;margin-bottom:10px;"
+      onclick="document.getElementById('iosCameraInput').click()">📸 Scan dengan Kamera (iOS)</button>
+
     <button id="btnStop" type="button" class="main-btn"
       style="display:none;background:var(--danger);color:white;margin-bottom:10px;"
       onclick="stopScanning()">❌ Hentikan Scanner</button>
@@ -332,7 +337,7 @@
     hasBarcodeAPI = ('BarcodeDetector' in window);
 
     document.getElementById('tipText').innerHTML = isIOS
-      ? '<strong>📱 iOS:</strong> Pastikan Anda mengizinkan akses kamera. Tombol 📷 untuk scan langsung.'
+      ? '<strong>📱 iOS:</strong> Gunakan tombol <strong>📸 Scan dengan Kamera (iOS)</strong> di bawah. Pastikan Anda mengizinkan akses kamera.'
       : '<strong>💡 Tips:</strong> Tombol 📷 scan live otomatis. Tombol 📂 untuk scan dari foto di galeri.';
 
     if (window.supabase && window.supabase.createClient) {
@@ -349,6 +354,18 @@
       decodeFromImageFile(e.target.files[0]);
       this.value = '';
     });
+
+    // iOS native camera input
+    document.getElementById('iosCameraInput').addEventListener('change', function(e) {
+      if (!e.target.files || !e.target.files.length) return;
+      decodeFromImageFile(e.target.files[0]);
+      this.value = '';
+    });
+
+    // Tampilkan tombol kamera native untuk iOS (paling andal)
+    if (isIOS) {
+      document.getElementById('btnIOSCamera').style.display = 'block';
+    }
   };
 
   /* ═══════════════════════════════════════

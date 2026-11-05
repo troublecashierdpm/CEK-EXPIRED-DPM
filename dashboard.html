@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — Inventory DPM</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -303,6 +304,8 @@
       </button>
       <div id="myDropdown" class="dropdown-content">
         <button onclick="exportData()">💾 Backup JSON</button>
+        <button onclick="exportToExcel()">📊 Export Excel (.xlsx)</button>
+        <button onclick="exportToCsv()">📄 Export CSV (.csv)</button>
         <button onclick="document.getElementById('importFile').click()">📂 Restore JSON</button>
         <button onclick="openTrashModal()" style="color:var(--danger)">🗑️ Recycle Bin</button>
       </div>
@@ -545,6 +548,54 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showToast('Backup berhasil diunduh.', 'ok');
+  }
+
+  function exportToExcel() {
+    if (!allData || !allData.length) { showToast('Tidak ada data.', 'err'); return; }
+    try {
+      var dataToExport = allData.map(function(r) {
+        return {
+          'Dept': r.dept,
+          'Kategori': r.jenis_barang,
+          'Nama Barang': r.deskripsi_barang,
+          'Barcode': r.barcode,
+          'Gondola': r.gondola,
+          'Selving': r.selving,
+          'Qty': r.qty,
+          'Tgl Input': r.input_date,
+          'Tgl Expired': r.expired_date,
+          'Status': r._status,
+          'Remarks': r.remarks || 'TERDISPLAY'
+        };
+      });
+      var ws = XLSX.utils.json_to_sheet(dataToExport);
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Data Expired");
+      XLSX.writeFile(wb, "Data_Expired_DPM_" + new Date().toISOString().slice(0,10) + ".xlsx");
+      showToast('Excel berhasil diunduh.', 'ok');
+    } catch(e) { showToast('Gagal export Excel.', 'err'); }
+  }
+
+  function exportToCsv() {
+    if (!allData || !allData.length) { showToast('Tidak ada data.', 'err'); return; }
+    var headers = ['Dept', 'Kategori', 'Nama Barang', 'Barcode', 'Gondola', 'Selving', 'Qty', 'Tgl Input', 'Tgl Expired', 'Status', 'Remarks'];
+    var csvContent = headers.join(',') + '\n';
+    allData.forEach(function(r) {
+      var row = [
+        r.dept, r.jenis_barang, '"' + (r.deskripsi_barang || '').replace(/"/g, '""') + '"',
+        r.barcode, r.gondola, r.selving, r.qty, r.input_date, r.expired_date, r._status, r.remarks || 'TERDISPLAY'
+      ];
+      csvContent += row.join(',') + '\n';
+    });
+    var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "Data_Expired_DPM_" + new Date().toISOString().slice(0,10) + ".csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('CSV berhasil diunduh.', 'ok');
   }
 
   function importData(event) {

@@ -450,7 +450,7 @@
   //   2. Kalau masih ada yang belum NULL, satu batch bisa menyebabkan
   //      response terlalu besar → request timeout → dashboard tidak muat
   // ─────────────────────────────────────────────────────────────────
-  var COLS = 'id, dept, gondola, selving, barcode, deskripsi_barang, qty, expired_date, jenis_barang, input_date, remarks, takeout_date, link_foto, is_deleted, deleted_at';
+  var COLS = 'id, dept, gondola, selving, barcode, deskripsi_barang, qty, expired_date, jenis_barang, input_date, remarks, takeout_date, takeout_by, link_foto, is_deleted, deleted_at';
 
   var db         = null;
   var allData    = [];
@@ -584,7 +584,8 @@
           'Tgl Expired': r.expired_date,
           'Status': r._status,
           'Remarks': r.remarks || 'TERDISPLAY',
-          'Tgl Takeout': r.takeout_date || '-'
+          'Tgl Takeout': r.takeout_date || '-',
+          'PIC Takeout': r.takeout_by || '-'
         };
       });
       var ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -596,12 +597,12 @@
   }
 
   function exportToCsv(data, deptName) {
-    var headers = ['Dept', 'Kategori', 'Nama Barang', 'Barcode', 'Gondola', 'Selving', 'Qty', 'Tgl Input', 'Tgl Expired', 'Status', 'Remarks', 'Tgl Takeout'];
+    var headers = ['Dept', 'Kategori', 'Nama Barang', 'Barcode', 'Gondola', 'Selving', 'Qty', 'Tgl Input', 'Tgl Expired', 'Status', 'Remarks', 'Tgl Takeout', 'PIC Takeout'];
     var csvContent = headers.join(',') + '\n';
     data.forEach(function(r) {
       var row = [
         r.dept, r.jenis_barang, '"' + (r.deskripsi_barang || '').replace(/"/g, '""') + '"',
-        r.barcode, r.gondola, r.selving, r.qty, r.input_date, r.expired_date, r._status, r.remarks || 'TERDISPLAY', r.takeout_date || '-'
+        r.barcode, r.gondola, r.selving, r.qty, r.input_date, r.expired_date, r._status, r.remarks || 'TERDISPLAY', r.takeout_date || '-', r.takeout_by || '-'
       ];
       csvContent += row.join(',') + '\n';
     });
@@ -877,7 +878,7 @@
         + '</td>'
         + '<td><span class="chip-status ' + r._status + '">' + r._status + '</span></td>'
         + '<td><span class="chip-status" style="background:' + (String(r.remarks).toUpperCase() === 'TAKEOUT' ? '#64748b' : '#0ea5e9') + ';color:#fff;font-size:10px;">' + (String(r.remarks).toUpperCase() === 'TAKEOUT' ? 'Di Takeout' : 'Terdisplay') + '</span>'
-        + (r.takeout_date ? '<br><span style="font-size:9px;color:#64748b;">' + fmtDate(r.takeout_date) + '</span>' : '')
+        + (r.takeout_date ? '<br><span style="font-size:9px;color:#64748b;">' + fmtDate(r.takeout_date) + (r.takeout_by ? ' (' + r.takeout_by + ')' : '') + '</span>' : '')
         + '</td>'
         + '<td style="white-space:nowrap;">'
         + '<button class="btn-edit-row" onclick=\'openEditModal(' + JSON.stringify(r) + ')\' title="Edit Kategori/Data" style="background:#0ea5e9;color:#fff;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;margin-right:4px;font-size:11px;">✏️</button>'
@@ -1039,6 +1040,8 @@
              + '<option value="TERDISPLAY" ' + (String(item.remarks).toUpperCase() === 'TERDISPLAY' || !item.remarks ? 'selected' : '') + '>TERDISPLAY (Masih Terdisplay)</option>'
              + '<option value="TAKEOUT" ' + (String(item.remarks).toUpperCase() === 'TAKEOUT' ? 'selected' : '') + '>TAKEOUT (Sudah di Takeout)</option>'
              + '</select></div>'
+             + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">PIC Takeout</label>'
+             + '<input type="text" id="editTakeoutBy" value="' + (item.takeout_by || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div>'
              + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;">'
              + '<div><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Qty</label>'
              + '<input type="number" id="editQty" value="' + (item.qty || 1) + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div>'
@@ -1057,6 +1060,7 @@
       jenis_barang:     document.getElementById('editKat').value,
       remarks:          remarksVal,
       takeout_date:     remarksVal === 'TAKEOUT' ? new Date().toISOString().split('T')[0] : null,
+      takeout_by:       remarksVal === 'TAKEOUT' ? document.getElementById('editTakeoutBy').value : null,
       qty:              parseInt(document.getElementById('editQty').value),
       expired_date:     document.getElementById('editExp').value
     };

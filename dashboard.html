@@ -805,7 +805,7 @@
         + '</td>'
         + '<td><span class="chip-status ' + r._status + '">' + r._status + '</span></td>'
         + '<td style="white-space:nowrap;">'
-        + '<button class="btn-edit-row" onclick="openEditModal(' + JSON.stringify(r).replace(/"/g, '&quot;') + ')" title="Edit Kategori/Data" style="background:#0ea5e9;color:#fff;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;margin-right:4px;font-size:11px;">✏️</button>'
+        + '<button class="btn-edit-row" onclick=\'openEditModal(' + JSON.stringify(r) + ')\' title="Edit Kategori/Data" style="background:#0ea5e9;color:#fff;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;margin-right:4px;font-size:11px;">✏️</button>'
         + '<button class="btn-del-row" onclick="askDelete(\'' + rowId + '\',\'' + barcodeEsc + '\',\'' + namaEsc + '\')" title="Hapus">🗑️</button>'
         + '</td>'
         + '</tr>';
@@ -939,11 +939,12 @@
   }
 
   /* ── MODAL EDIT ── */
-  function openEditModal(item) {
-    var html = '<h3 style="margin-bottom:15px;">✏️ Edit Data</h3>'
-             + '<label style="display:block;margin-bottom:5px;font-size:12px;font-weight:600">Kategori</label>'
-             + '<input type="text" id="editKat" value="' + (item.jenis_barang || '') + '" style="width:100%;padding:8px;margin-bottom:15px;border:1px solid #cbd5e1;border-radius:6px;">'
-             + '<button onclick="saveEdit(' + item.id + ')" style="width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;">Simpan Perubahan</button>';
+  function openEditModal(itemStr) {
+    var item = typeof itemStr === 'string' ? JSON.parse(itemStr) : itemStr;
+    var html = '<h3 style="margin-bottom:15px;">✏️ Edit Kategori</h3>'
+             + '<label style="display:block;margin-bottom:5px;font-size:12px;font-weight:600">Barang: ' + (item.deskripsi_barang || '-') + '</label>'
+             + '<input type="text" id="editKat" value="' + (item.jenis_barang || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px;margin-bottom:15px;border:1px solid #cbd5e1;border-radius:6px;">'
+             + '<button onclick="saveEdit(' + item.id + ')" style="width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;">Simpan Perubahan</button>';
     document.getElementById('modalContent').innerHTML = html;
     document.getElementById('modalBg').classList.add('open');
   }

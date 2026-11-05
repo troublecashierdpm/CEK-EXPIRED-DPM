@@ -255,6 +255,7 @@
     .modal-bg.open { display: flex; }
     .modal-inner { position: relative; max-width: 92vw; max-height: 88vh; }
     .modal-inner img { max-width: 92vw; max-height: 88vh; border-radius: 12px; object-fit: contain; display: block; }
+    .modal-box { background: #fff; border-radius: 16px; padding: 24px; max-width: 480px; width: 92vw; max-height: 88vh; overflow-y: auto; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
     .modal-x { position: absolute; top: -40px; right: 0; background: rgba(255,255,255,0.15); border: none; color: #fff; width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; }
     .modal-err { color: #fca5a5; font-size: 13px; padding: 48px 32px; text-align: center; }
 
@@ -948,20 +949,34 @@
       }
     });
 
-    var html = '<h3 style="margin-bottom:15px;">✏️ Edit Kategori</h3>'
-             + '<label style="display:block;margin-bottom:5px;font-size:12px;font-weight:600">Barang: ' + (item.deskripsi_barang || '-') + '</label>'
-             + '<select id="editKat" style="width:100%;padding:8px;margin-bottom:15px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">' + katOptions + '</select>'
-             + '<button onclick="saveEdit(' + item.id + ')" style="width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;">Simpan Perubahan</button>';
+    var html = '<div class="modal-box" onclick="event.stopPropagation()">'
+             + '<h3 style="margin-bottom:15px;font-size:16px;">✏️ Edit Data</h3>'
+             + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Nama Barang</label>'
+             + '<input type="text" id="editNama" value="' + (item.deskripsi_barang || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div>'
+             + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Kategori</label>'
+             + '<select id="editKat" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;box-sizing:border-box;">' + katOptions + '</select></div>'
+             + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;">'
+             + '<div><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Qty</label>'
+             + '<input type="number" id="editQty" value="' + (item.qty || 1) + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div>'
+             + '<div><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Tgl Expired</label>'
+             + '<input type="date" id="editExp" value="' + (item.expired_date || '') + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div></div>'
+             + '<button onclick="saveEdit(' + item.id + ')" style="width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;">Simpan Perubahan</button>'
+             + '</div>';
     document.getElementById('modalContent').innerHTML = html;
     document.getElementById('modalBg').classList.add('open');
   }
 
   function saveEdit(id) {
-    var kat = document.getElementById('editKat').value;
-    db.from('data_expired').update({ jenis_barang: kat }).eq('id', id)
+    var data = {
+      deskripsi_barang: document.getElementById('editNama').value,
+      jenis_barang:     document.getElementById('editKat').value,
+      qty:              parseInt(document.getElementById('editQty').value),
+      expired_date:     document.getElementById('editExp').value
+    };
+    db.from('data_expired').update(data).eq('id', id)
       .then(function(res) {
         if (res.error) throw res.error;
-        showToast('✅ Berhasil update kategori!', 'ok');
+        showToast('✅ Data berhasil diperbarui!', 'ok');
         closeModal();
         loadAll();
       })

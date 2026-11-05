@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Inventory Check DPM</title>
 
-  <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
@@ -408,20 +408,65 @@
     document.getElementById('btnStop').style.display = 'flex';
     scanLoopActive = true;
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
-      .catch(function() { return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); })
+    // iOS Safari membutuhkan atribut muted + playsinline agar video bisa autoplay
+    video.setAttribute('muted', '');
+    video.setAttribute('playsinline', '');
+    video.setAttribute('autoplay', '');
+    video.muted = true;
+
+    // Deteksi iOS — iOS Safari sering gagal dengan facingMode exact, gunakan ideal saja
+    var isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    var constraints = isIOSDevice
+      ? { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }
+      : { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+      .catch(function(err1) {
+        // Fallback: coba tanpa resolusi spesifik
+        return navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+          .catch(function() {
+            // Fallback terakhir: kamera apapun yang tersedia
+            return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          });
+      })
       .then(function(stream) {
+        if (!stream) throw new Error('No stream');
         scanStream = stream;
         video.srcObject = stream;
-        video.setAttribute('playsinline', true);
+        video.muted = true;
+
+        var startDecoder = function() {
+          // Beri jeda kecil untuk iOS agar frame pertama siap
+          setTimeout(function() {
+            if (!scanLoopActive) return;
+            if (hasBarcodeAPI && !isIOSDevice) {
+              startBarcodeDetectorLoop(video);
+            } else {
+              // iOS & browser tanpa BarcodeDetector → selalu pakai ZXing
+              startZxingLoop(video);
+            }
+          }, 300);
+        };
+
+        if (video.readyState >= 2) {
+          startDecoder();
+        } else {
+          video.addEventListener('loadedmetadata', startDecoder, { once: true });
+          // Timeout fallback jika loadedmetadata tidak fire (bug iOS)
+          setTimeout(function() { if (scanLoopActive && video.readyState >= 1) startDecoder(); }, 2000);
+        }
+
         video.play().catch(function(e) { console.warn("Auto-play error:", e); });
-        video.addEventListener('loadedmetadata', function() {
-          hasBarcodeAPI ? startBarcodeDetectorLoop(video) : startZxingLoop(video);
-        }, { once: true });
       })
-      .catch(function() {
+      .catch(function(err) {
+        console.error('Camera error:', err);
         stopScanning();
-        showToast('❌ Kamera tidak bisa dibuka. Pastikan izin kamera aktif.', 't-error', 4000);
+        var msg = '❌ Kamera tidak bisa dibuka.';
+        if (err && err.name === 'NotAllowedError') msg += ' Izin kamera ditolak. Aktifkan di Settings > Safari > Kamera.';
+        else if (err && err.name === 'NotFoundError') msg += ' Kamera tidak ditemukan.';
+        else msg += ' Pastikan izin kamera aktif dan halaman dibuka via HTTPS.';
+        showToast(msg, 't-error', 5000);
       });
   }
 
@@ -459,8 +504,10 @@
     var skipFrm = 0;
     function tick() {
       if (!scanLoopActive) return;
+      // iOS sering butuh video siap lebih lama
       if (video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) { requestAnimationFrame(tick); return; }
-      if (++skipFrm < 3) { requestAnimationFrame(tick); return; }
+      // Tambah jeda frame untuk iOS agar tidak overload
+      if (++skipFrm < 4) { requestAnimationFrame(tick); return; }
       skipFrm = 0;
       canvas.width = video.videoWidth; canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);

@@ -450,7 +450,7 @@
   //   2. Kalau masih ada yang belum NULL, satu batch bisa menyebabkan
   //      response terlalu besar → request timeout → dashboard tidak muat
   // ─────────────────────────────────────────────────────────────────
-  var COLS = 'id, dept, gondola, selving, barcode, deskripsi_barang, qty, expired_date, jenis_barang, input_date, remarks, link_foto, is_deleted, deleted_at';
+  var COLS = 'id, dept, gondola, selving, barcode, deskripsi_barang, qty, expired_date, jenis_barang, input_date, remarks, takeout_date, link_foto, is_deleted, deleted_at';
 
   var db         = null;
   var allData    = [];
@@ -583,7 +583,8 @@
           'Tgl Input': r.input_date,
           'Tgl Expired': r.expired_date,
           'Status': r._status,
-          'Remarks': r.remarks || 'TERDISPLAY'
+          'Remarks': r.remarks || 'TERDISPLAY',
+          'Tgl Takeout': r.takeout_date || '-'
         };
       });
       var ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -595,12 +596,12 @@
   }
 
   function exportToCsv(data, deptName) {
-    var headers = ['Dept', 'Kategori', 'Nama Barang', 'Barcode', 'Gondola', 'Selving', 'Qty', 'Tgl Input', 'Tgl Expired', 'Status', 'Remarks'];
+    var headers = ['Dept', 'Kategori', 'Nama Barang', 'Barcode', 'Gondola', 'Selving', 'Qty', 'Tgl Input', 'Tgl Expired', 'Status', 'Remarks', 'Tgl Takeout'];
     var csvContent = headers.join(',') + '\n';
     data.forEach(function(r) {
       var row = [
         r.dept, r.jenis_barang, '"' + (r.deskripsi_barang || '').replace(/"/g, '""') + '"',
-        r.barcode, r.gondola, r.selving, r.qty, r.input_date, r.expired_date, r._status, r.remarks || 'TERDISPLAY'
+        r.barcode, r.gondola, r.selving, r.qty, r.input_date, r.expired_date, r._status, r.remarks || 'TERDISPLAY', r.takeout_date || '-'
       ];
       csvContent += row.join(',') + '\n';
     });
@@ -1048,10 +1049,12 @@
   }
 
   function saveEdit(id) {
+    var remarksVal = document.getElementById('editRemarks').value;
     var data = {
       deskripsi_barang: document.getElementById('editNama').value,
       jenis_barang:     document.getElementById('editKat').value,
-      remarks:          document.getElementById('editRemarks').value,
+      remarks:          remarksVal,
+      takeout_date:     remarksVal === 'TAKEOUT' ? new Date().toISOString().split('T')[0] : null,
       qty:              parseInt(document.getElementById('editQty').value),
       expired_date:     document.getElementById('editExp').value
     };

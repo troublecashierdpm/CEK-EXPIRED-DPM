@@ -632,7 +632,7 @@
         if (r.expired_date) {
           var expD = new Date(r.expired_date); expD.setHours(0,0,0,0);
           var diff = Math.ceil((expD - today) / 86400000);
-          console.log('DEBUG:', r.dept, jenis, 'limit:', limitHari, 'diff:', diff); // Tambahkan debug
+          console.log('DEBUG [loadAll]:', { dept: r.dept, jenis: jenis, limit: limitHari, diff: diff, exp: r.expired_date });
           r._status = diff < 0 ? 'EXPIRED' : (limitHari > 0 && diff <= limitHari ? 'WARNING' : 'AMAN');
         } else {
           r._status = r.remarks || 'AMAN';

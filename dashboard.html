@@ -382,7 +382,7 @@
             <th style="width:36px;"><input type="checkbox" class="cb-all" id="cbAll" onclick="toggleSelectAll(this)"></th>
             <th>Foto</th><th>Dept</th><th>Kategori</th><th>Nama Barang</th><th>Barcode</th>
             <th>Gondola–Selving</th><th>Qty</th><th>Tgl Input</th>
-            <th>Tgl Expired</th><th>Sisa Hari</th><th>Status</th><th>Aksi</th>
+            <th>Tgl Expired</th><th>Sisa Hari</th><th>Status</th><th>Remarks</th><th>Aksi</th>
           </tr>
         </thead>
         <tbody id="tblBody">
@@ -805,6 +805,7 @@
         + (limitHari > 0 ? '<br><span style="font-size:9px;color:#94a3b8;">limit ' + limitHari + 'h</span>' : '')
         + '</td>'
         + '<td><span class="chip-status ' + r._status + '">' + r._status + '</span></td>'
+        + '<td><span class="chip-status" style="background:' + (String(r.remarks).toUpperCase() === 'TAKEOUT' ? '#64748b' : '#0ea5e9') + ';color:#fff;font-size:10px;">' + (r.remarks || 'TERDISPLAY') + '</span></td>'
         + '<td style="white-space:nowrap;">'
         + '<button class="btn-edit-row" onclick=\'openEditModal(' + JSON.stringify(r) + ')\' title="Edit Kategori/Data" style="background:#0ea5e9;color:#fff;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;margin-right:4px;font-size:11px;">✏️</button>'
         + '<button class="btn-del-row" onclick="askDelete(\'' + rowId + '\',\'' + barcodeEsc + '\',\'' + namaEsc + '\')" title="Hapus">🗑️</button>'
@@ -960,6 +961,11 @@
              + '<input type="text" id="editNama" value="' + (item.deskripsi_barang || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Kategori</label>'
              + '<select id="editKat" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;box-sizing:border-box;">' + katOptions + '</select></div>'
+             + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Remarks (Keterangan)</label>'
+             + '<select id="editRemarks" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;box-sizing:border-box;">'
+             + '<option value="TERDISPLAY" ' + (String(item.remarks).toUpperCase() === 'TERDISPLAY' || !item.remarks ? 'selected' : '') + '>TERDISPLAY (Masih Terdisplay)</option>'
+             + '<option value="TAKEOUT" ' + (String(item.remarks).toUpperCase() === 'TAKEOUT' ? 'selected' : '') + '>TAKEOUT (Sudah di Takeout)</option>'
+             + '</select></div>'
              + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;">'
              + '<div><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Qty</label>'
              + '<input type="number" id="editQty" value="' + (item.qty || 1) + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div>'
@@ -975,6 +981,7 @@
     var data = {
       deskripsi_barang: document.getElementById('editNama').value,
       jenis_barang:     document.getElementById('editKat').value,
+      remarks:          document.getElementById('editRemarks').value,
       qty:              parseInt(document.getElementById('editQty').value),
       expired_date:     document.getElementById('editExp').value
     };

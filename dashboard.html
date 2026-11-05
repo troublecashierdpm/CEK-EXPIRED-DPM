@@ -949,8 +949,13 @@
       }
     });
 
+    var fotoHtml = item.link_foto 
+      ? '<div style="text-align:center;margin-bottom:15px;"><img src="' + item.link_foto.replace(/"/g, '&quot;') + '" style="max-height:120px;max-width:100%;object-fit:contain;border-radius:8px;border:1px solid #e2e8f0;"></div>' 
+      : '';
+
     var html = '<div class="modal-box" onclick="event.stopPropagation()">'
-             + '<h3 style="margin-bottom:15px;font-size:16px;">✏️ Edit Data</h3>'
+             + '<h3 style="margin-bottom:12px;font-size:16px;">✏️ Edit Data</h3>'
+             + fotoHtml
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Nama Barang</label>'
              + '<input type="text" id="editNama" value="' + (item.deskripsi_barang || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Kategori</label>'

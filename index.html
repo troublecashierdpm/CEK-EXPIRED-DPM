@@ -6,7 +6,7 @@
   <title>Inventory Check DPM</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+  <script src="https://unpkg.com/@html5qrcode/2.3.124/html5-qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
@@ -217,7 +217,7 @@
       <input type="text" id="barcode" placeholder="Scan/Ketik" style="margin-bottom:0;">
       <button type="button" class="main-btn btn-scan"
         style="width:60px;padding:0;flex-shrink:0;"
-        onclick="startScanning()" title="Scan Live">📷</button>
+        onclick="startScanner()" title="Scan Live">📷</button>
       <button type="button" class="main-btn"
         style="width:60px;padding:0;background:#e2e8f0;flex-shrink:0;"
         onclick="pickFromGallery()" title="Pilih dari Galeri">📂</button>
@@ -230,15 +230,9 @@
 
     <button id="btnStop" type="button" class="main-btn"
       style="display:none;background:var(--danger);color:white;margin-bottom:10px;"
-      onclick="stopScanning()">❌ Hentikan Scanner</button>
+      onclick="stopScanner()">❌ Hentikan Scanner</button>
 
-    <div id="scannerWrap">
-      <video id="scannerVideo" autoplay muted playsinline webkit-playsinline></video>
-      <div id="scannerOverlay">
-        <div class="aim-box"></div>
-        <div class="aim-label">Arahkan barcode ke dalam kotak</div>
-      </div>
-    </div>
+    <div id="reader" style="display:none; width:100%;"></div>
 
     <input type="file" id="galleryInput" accept="image/*" style="display:none">
 
@@ -299,6 +293,7 @@
   var scanLoopActive = false;
   var isIOS          = false;
   var hasBarcodeAPI  = false;
+  var qrScanner      = null;
 
   var masterData = [
     { dept: "HBC",       kategori: "SKINCARE",   limit: 90  },
@@ -416,143 +411,87 @@
   }
 
   /* ═══════════════════════════════════════
-     SCANNER
+     SCANNER — html5-qrcode (cross-platform, iOS-friendly)
   ═══════════════════════════════════════ */
-  function startScanning() {
-    var wrap  = document.getElementById('scannerWrap');
-    var video = document.getElementById('scannerVideo');
-    wrap.style.display = 'block';
-    document.getElementById('btnStop').style.display = 'flex';
+  function startScanner() {
     scanLoopActive = true;
+    document.getElementById('reader').style.display = 'block';
+    document.getElementById('btnStop').style.display = 'flex';
 
-    // iOS Safari membutuhkan atribut muted + playsinline agar video bisa autoplay
-    video.setAttribute('muted', '');
-    video.setAttribute('playsinline', '');
-    video.setAttribute('autoplay', '');
-    video.muted = true;
+    if (typeof Html5Qrcode === 'undefined') {
+      showToast('❌ Library scanner belum siap. Refresh halaman.', 't-error');
+      return;
+    }
 
-    // Deteksi iOS — iOS Safari sering gagal dengan facingMode exact, gunakan ideal saja
-    var isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-    var constraints = isIOSDevice
-      ? { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }
-      : { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
-
-    navigator.mediaDevices.getUserMedia(constraints)
-      .catch(function(err1) {
-        // Fallback: coba tanpa resolusi spesifik
-        return navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
-          .catch(function() {
-            // Fallback terakhir: kamera apapun yang tersedia
-            return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-          });
-      })
-      .then(function(stream) {
-        if (!stream) throw new Error('No stream');
-        scanStream = stream;
-        video.srcObject = stream;
-        video.muted = true;
-
-        var startDecoder = function() {
-          // Beri jeda kecil untuk iOS agar frame pertama siap
-          setTimeout(function() {
-            if (!scanLoopActive) return;
-            if (hasBarcodeAPI && !isIOSDevice) {
-              startBarcodeDetectorLoop(video);
-            } else {
-              // iOS & browser tanpa BarcodeDetector → selalu pakai ZXing
-              startZxingLoop(video);
-            }
-          }, 300);
-        };
-
-        if (video.readyState >= 2) {
-          startDecoder();
-        } else {
-          video.addEventListener('loadedmetadata', startDecoder, { once: true });
-          // Timeout fallback jika loadedmetadata tidak fire (bug iOS)
-          setTimeout(function() { if (scanLoopActive && video.readyState >= 1) startDecoder(); }, 2000);
-        }
-
-        video.play().catch(function(e) { console.warn("Auto-play error:", e); });
-      })
-      .catch(function(err) {
-        console.error('Camera error:', err);
-        stopScanning();
-        var msg = '❌ Kamera tidak bisa dibuka.';
-        if (err && err.name === 'NotAllowedError') msg += ' Izin kamera ditolak. Aktifkan di Settings > Safari > Kamera.';
-        else if (err && err.name === 'NotFoundError') msg += ' Kamera tidak ditemukan.';
-        else msg += ' Pastikan izin kamera aktif dan halaman dibuka via HTTPS.';
-        showToast(msg, 't-error', 5000);
+    if (qrScanner) {
+      qrScanner.stop().then(function() {
+        qrScanner.clear();
+        startQrScanner();
+      }).catch(function() {
+        startQrScanner();
       });
+    } else {
+      startQrScanner();
+    }
   }
 
-  function startBarcodeDetectorLoop(video) {
-    var formats = ['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar','qr_code','data_matrix'];
-    var detector = new BarcodeDetector({ formats: formats });
-    function tick() {
-      if (!scanLoopActive) return;
-      if (video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) { requestAnimationFrame(tick); return; }
-      detector.detect(video)
-        .then(function(codes) {
-          if (codes && codes.length > 0) onBarcodeFound(codes[0].rawValue);
-          else requestAnimationFrame(tick);
-        })
-        .catch(function() { startZxingLoop(video); });
-    }
-    requestAnimationFrame(tick);
-  }
+  function startQrScanner() {
+    qrScanner = new Html5Qrcode('reader');
 
-  function startZxingLoop(video) {
-    if (!window.ZXing) { setTimeout(function() { startZxingLoop(video); }, 300); return; }
-    var hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
-      ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
-      ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF,
-      ZXing.BarcodeFormat.CODABAR, ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX
-    ]);
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    var reader = new ZXing.MultiFormatReader();
-    reader.setHints(hints);
-    var canvas = document.createElement('canvas');
-    var ctx = canvas.getContext('2d', { willReadFrequently: true });
-    var skipFrm = 0;
-    function tick() {
-      if (!scanLoopActive) return;
-      // iOS sering butuh video siap lebih lama
-      if (video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) { requestAnimationFrame(tick); return; }
-      // Tambah jeda frame untuk iOS agar tidak overload
-      if (++skipFrm < 4) { requestAnimationFrame(tick); return; }
-      skipFrm = 0;
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      try {
-        var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        var lum = new ZXing.RGBLuminanceSource(imgData.data, canvas.width, canvas.height);
-        var result = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum)));
-        if (result) { onBarcodeFound(result.getText()); return; }
-      } catch(e) {}
-      requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
+    var formatsToSupport = [
+      Html5QrcodeScanner.SupportedFormats.EAN_13,
+      Html5QrcodeScanner.SupportedFormats.EAN_8,
+      Html5QrcodeScanner.SupportedFormats.UPC_A,
+      Html5QrcodeScanner.SupportedFormats.UPC_E,
+      Html5QrcodeScanner.SupportedFormats.CODE_39,
+      Html5QrcodeScanner.SupportedFormats.CODE_93,
+      Html5QrcodeScanner.SupportedFormats.CODE_128,
+      Html5QrcodeScanner.SupportedFormats.ITF,
+      Html5QrcodeScanner.SupportedFormats.CODABAR,
+      Html5QrcodeScanner.SupportedFormats.QR_CODE,
+      Html5QrcodeScanner.SupportedFormats.DATA_MATRIX
+    ];
+
+    var config = {
+      fps: 10,
+      qrbox: { width: 280, height: 160 },
+      aspectRatio: 1.5,
+      formatsToSupport: formatsToSupport,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    };
+
+    qrScanner.start(
+      { facingMode: 'environment' },
+      config,
+      function(decodedText, decodedResult) {
+        onBarcodeFound(decodedText);
+      },
+      function(errorMessage) {
+        // silent fail - keep scanning
+      }
+    ).catch(function(err) {
+      console.error('Scanner error:', err);
+      showToast('❌ Gagal akses kamera: ' + err, 't-error', 5000);
+      stopScanner();
+    });
   }
 
   function onBarcodeFound(text) {
     if (!text || !scanLoopActive) return;
-    document.getElementById('barcode').value = text;
     if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+    document.getElementById('barcode').value = text;
     showToast('✅ Barcode: ' + text, 't-success');
-    stopScanning();
+    stopScanner();
   }
 
-  function stopScanning() {
+  function stopScanner() {
     scanLoopActive = false;
-    if (scanStream) { scanStream.getTracks().forEach(function(t) { t.stop(); }); scanStream = null; }
-    var video = document.getElementById('scannerVideo');
-    video.srcObject = null;
-    document.getElementById('scannerWrap').style.display = 'none';
+    if (qrScanner) {
+      qrScanner.stop().then(function() {
+        qrScanner.clear();
+      }).catch(function(e) { console.warn('Scanner stop error:', e); });
+    }
+    document.getElementById('reader').style.display = 'none';
     document.getElementById('btnStop').style.display = 'none';
   }
 
@@ -560,51 +499,19 @@
 
   function decodeFromImageFile(file) {
     showLoader('Membaca Barcode...');
-    var url = URL.createObjectURL(file);
-    var img = new Image();
-    img.onload = function() {
-      if (hasBarcodeAPI) {
-        new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar','qr_code','data_matrix'] })
-          .detect(img)
-          .then(function(codes) {
-            URL.revokeObjectURL(url);
-            if (codes && codes.length > 0) { hideLoader(); onBarcodeFound(codes[0].rawValue); }
-            else decodeWithZxing(img, url);
-          }).catch(function() { decodeWithZxing(img, url); });
-      } else { decodeWithZxing(img, url); }
-    };
-    img.onerror = function() { URL.revokeObjectURL(url); hideLoader(); showToast('❌ Gagal membaca file gambar.', 't-error'); };
-    img.src = url;
-  }
-
-  function decodeWithZxing(img, url) {
-    if (!window.ZXing) { hideLoader(); showToast('❌ Library scan belum siap.', 't-error'); return; }
-    var MAX = 1200;
-    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-    if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-    if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
-    var canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    var ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(img, 0, 0, w, h);
-    var hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
-      ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
-      ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR,
-      ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX
-    ]);
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    var reader = new ZXing.MultiFormatReader();
-    reader.setHints(hints);
-    try {
-      var imgData = ctx.getImageData(0, 0, w, h);
-      var result = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.RGBLuminanceSource(imgData.data, w, h))));
-      if (url) URL.revokeObjectURL(url);
-      hideLoader(); onBarcodeFound(result.getText());
-    } catch(e) {
-      if (url) URL.revokeObjectURL(url);
-      hideLoader(); showToast('❌ Barcode tidak terbaca. Pastikan gambar jelas.', 't-error', 4000);
+    if (typeof Html5Qrcode !== 'undefined') {
+      Html5Qrcode.scanFile(file, true)
+        .then(function(result) {
+          hideLoader();
+          onBarcodeFound(result);
+        })
+        .catch(function(err) {
+          hideLoader();
+          showToast('❌ Barcode tidak terbaca dari gambar ini.', 't-error', 4000);
+        });
+    } else {
+      hideLoader();
+      showToast('❌ Library scanner belum siap. Refresh halaman.', 't-error');
     }
   }
 

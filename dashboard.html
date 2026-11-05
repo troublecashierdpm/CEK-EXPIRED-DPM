@@ -379,9 +379,9 @@
         <thead>
           <tr>
             <th style="width:36px;"><input type="checkbox" class="cb-all" id="cbAll" onclick="toggleSelectAll(this)"></th>
-            <th>Foto</th><th>Dept</th><th>Nama Barang</th><th>Barcode</th>
+            <th>Foto</th><th>Dept</th><th>Kategori</th><th>Nama Barang</th><th>Barcode</th>
             <th>Gondola–Selving</th><th>Qty</th><th>Tgl Input</th>
-            <th>Tgl Expired</th><th>Sisa Hari</th><th>Status</th><th>Hapus</th>
+            <th>Tgl Expired</th><th>Sisa Hari</th><th>Status</th><th>Aksi</th>
           </tr>
         </thead>
         <tbody id="tblBody">
@@ -793,6 +793,7 @@
         +   '" onchange="onCbChange()"></td>'
         + '<td><div class="td-foto-wrap' + fotoClass + '"' + fotoClick + '>' + imgHtml + '</div></td>'
         + '<td><span class="badge-dept-tbl">' + (r.dept||'-') + '</span></td>'
+        + '<td style="font-size:12px;font-weight:600;color:var(--primary);">' + (r.jenis_barang||'-') + '</td>'
         + '<td class="td-nama" title="' + nama + '">' + nama + '</td>'
         + '<td class="td-mono">' + (r.barcode||'-') + '</td>'
         + '<td style="font-size:12px;white-space:nowrap;">' + (r.gondola||'-') + ' – ' + (r.selving||'-') + '</td>'
@@ -803,7 +804,10 @@
         + (limitHari > 0 ? '<br><span style="font-size:9px;color:#94a3b8;">limit ' + limitHari + 'h</span>' : '')
         + '</td>'
         + '<td><span class="chip-status ' + r._status + '">' + r._status + '</span></td>'
-        + '<td><button class="btn-del-row" onclick="askDelete(\'' + rowId + '\',\'' + barcodeEsc + '\',\'' + namaEsc + '\')" title="Hapus">🗑️</button></td>'
+        + '<td style="white-space:nowrap;">'
+        + '<button class="btn-edit-row" onclick="openEditModal(' + JSON.stringify(r).replace(/"/g, '&quot;') + ')" title="Edit Kategori/Data" style="background:#0ea5e9;color:#fff;border:none;padding:5px 8px;border-radius:6px;cursor:pointer;margin-right:4px;font-size:11px;">✏️</button>'
+        + '<button class="btn-del-row" onclick="askDelete(\'' + rowId + '\',\'' + barcodeEsc + '\',\'' + namaEsc + '\')" title="Hapus">🗑️</button>'
+        + '</td>'
         + '</tr>';
     });
     body.innerHTML = html;
@@ -932,6 +936,30 @@
   function closeModal() {
     document.getElementById('modalBg').classList.remove('open');
     document.body.style.overflow = '';
+  }
+
+  /* ── MODAL EDIT ── */
+  function openEditModal(item) {
+    var html = '<h3 style="margin-bottom:15px;">✏️ Edit Data</h3>'
+             + '<label style="display:block;margin-bottom:5px;font-size:12px;font-weight:600">Kategori</label>'
+             + '<input type="text" id="editKat" value="' + (item.jenis_barang || '') + '" style="width:100%;padding:8px;margin-bottom:15px;border:1px solid #cbd5e1;border-radius:6px;">'
+             + '<button onclick="saveEdit(' + item.id + ')" style="width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;">Simpan Perubahan</button>';
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modalBg').classList.add('open');
+  }
+
+  function saveEdit(id) {
+    var kat = document.getElementById('editKat').value;
+    db.from('data_expired').update({ jenis_barang: kat }).eq('id', id)
+      .then(function(res) {
+        if (res.error) throw res.error;
+        showToast('✅ Berhasil update kategori!', 'ok');
+        closeModal();
+        loadAll();
+      })
+      .catch(function(err) {
+        showToast('❌ Gagal update: ' + err.message, 'err');
+      });
   }
 
   /* ── RECYCLE BIN & DROPDOWN ── */

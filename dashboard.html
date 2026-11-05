@@ -304,8 +304,8 @@
       </button>
       <div id="myDropdown" class="dropdown-content">
         <button onclick="exportData()">💾 Backup JSON</button>
-        <button onclick="exportToExcel()">📊 Export Excel (.xlsx)</button>
-        <button onclick="exportToCsv()">📄 Export CSV (.csv)</button>
+        <button onclick="exportMenu('excel')">📊 Export Excel (.xlsx)</button>
+        <button onclick="exportMenu('csv')">📄 Export CSV (.csv)</button>
         <button onclick="document.getElementById('importFile').click()">📂 Restore JSON</button>
         <button onclick="openTrashModal()" style="color:var(--danger)">🗑️ Recycle Bin</button>
       </div>
@@ -313,6 +313,25 @@
     <input type="file" id="importFile" style="display:none" accept=".json" onchange="importData(event)">
     <span id="loadStatus" style="font-size:11px;color:#94a3b8;"></span>
     <a class="btn-back" href="index.html">✏️ Input Barang</a>
+  </div>
+
+  <div id="exportModal" class="modal-bg" onclick="closeExportModal()">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <h3>Export Data</h3>
+      <label>Pilih Departemen:</label>
+      <select id="exportDept" style="width:100%;padding:8px;margin:10px 0;">
+        <option value="ALL">Semua Departemen</option>
+        <option value="GROCERY">GROCERY</option>
+        <option value="DND">DND</option>
+        <option value="GMS">GMS</option>
+        <option value="HBC">HBC</option>
+        <option value="DELSUSBAK">DELSUSBAK</option>
+        <option value="PRODUCE">PRODUCE</option>
+        <option value="NONFOOD">NONFOOD</option>
+        <option value="RTC">RTC</option>
+      </select>
+      <button id="exportConfirmBtn" style="width:100%;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;">Export</button>
+    </div>
   </div>
 </header>
 
@@ -531,29 +550,28 @@
     return isNaN(d) ? s : d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
   }
 
-  /* ── BACKUP ── */
-  function exportData() {
-    if (!allData || !allData.length) {
-      showToast('Tidak ada data untuk dibackup.', 'err');
-      return;
-    }
-    var jsonStr = JSON.stringify(allData, null, 2);
-    var blob = new Blob([jsonStr], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'backup_expired_dpm_' + new Date().toISOString().slice(0, 10) + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('Backup berhasil diunduh.', 'ok');
+  /* ── EXPORT ── */
+  var currentExportType = '';
+  function exportMenu(type) {
+    currentExportType = type;
+    document.getElementById('exportModal').classList.add('open');
+    toggleDropdown();
   }
+  function closeExportModal() { document.getElementById('exportModal').classList.remove('open'); }
 
-  function exportToExcel() {
-    if (!allData || !allData.length) { showToast('Tidak ada data.', 'err'); return; }
+  document.getElementById('exportConfirmBtn').onclick = function() {
+    var dept = document.getElementById('exportDept').value;
+    var data = (dept === 'ALL') ? allData : allData.filter(function(r){ return r.dept === dept; });
+    if (!data.length) { showToast('Tidak ada data di departemen ini.', 'err'); return; }
+    
+    if (currentExportType === 'excel') exportToExcel(data, dept);
+    else exportToCsv(data, dept);
+    closeExportModal();
+  };
+
+  function exportToExcel(data, deptName) {
     try {
-      var dataToExport = allData.map(function(r) {
+      var dataToExport = data.map(function(r) {
         return {
           'Dept': r.dept,
           'Kategori': r.jenis_barang,
@@ -571,16 +589,15 @@
       var ws = XLSX.utils.json_to_sheet(dataToExport);
       var wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Data Expired");
-      XLSX.writeFile(wb, "Data_Expired_DPM_" + new Date().toISOString().slice(0,10) + ".xlsx");
+      XLSX.writeFile(wb, "Data_Expired_" + deptName + "_" + new Date().toISOString().slice(0,10) + ".xlsx");
       showToast('Excel berhasil diunduh.', 'ok');
     } catch(e) { showToast('Gagal export Excel.', 'err'); }
   }
 
-  function exportToCsv() {
-    if (!allData || !allData.length) { showToast('Tidak ada data.', 'err'); return; }
+  function exportToCsv(data, deptName) {
     var headers = ['Dept', 'Kategori', 'Nama Barang', 'Barcode', 'Gondola', 'Selving', 'Qty', 'Tgl Input', 'Tgl Expired', 'Status', 'Remarks'];
     var csvContent = headers.join(',') + '\n';
-    allData.forEach(function(r) {
+    data.forEach(function(r) {
       var row = [
         r.dept, r.jenis_barang, '"' + (r.deskripsi_barang || '').replace(/"/g, '""') + '"',
         r.barcode, r.gondola, r.selving, r.qty, r.input_date, r.expired_date, r._status, r.remarks || 'TERDISPLAY'
@@ -590,13 +607,15 @@
     var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     var url = URL.createObjectURL(blob);
     var link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "Data_Expired_DPM_" + new Date().toISOString().slice(0,10) + ".csv");
+    link.href = url;
+    link.download = "Data_Expired_" + deptName + "_" + new Date().toISOString().slice(0,10) + ".csv";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     showToast('CSV berhasil diunduh.', 'ok');
   }
+
+  /* ── BACKUP ── */
 
   function importData(event) {
     var file = event.target.files[0];

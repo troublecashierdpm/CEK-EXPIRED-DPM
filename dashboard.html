@@ -385,6 +385,8 @@
         <option value="WARNING">⚠️ Warning</option>
         <option value="EXPIRED">❌ Expired</option>
         <option value="AMAN">✅ Aman</option>
+        <option value="TERDISPLAY">📦 Terdisplay</option>
+        <option value="TAKEOUT">✅ Takeout</option>
       </select>
       <select class="filter-sel" id="fSort" onchange="applyFilter()">
         <option value="expired_date_asc">Expired ↑ Terdekat</option>
@@ -460,7 +462,9 @@
   var curPage    = 1;
   // Kurangi ukuran batch dari 1000 ke 500 agar payload per request lebih ringan dan cepat
   var perPage    = 50;
-  var BATCH      = 500;
+  var BATCH      = 1000;
+  var CACHE_KEY  = 'cexp_dashboard_cache';
+  var CACHE_TTL  = 5 * 60 * 1000; // 5 menit
 
   var DEPTS = ['GROCERY','DND','GMS','HBC','DELSUSBAK','PRODUCE','NONFOOD','RTC'];
   var VALID_NIKS = ['2510009','1612004','2410035','1503008','1504215','2408182',
@@ -662,12 +666,29 @@
   }
 
   /* ── LOAD DATA ── */
-  function loadAll() {
+  function loadAll(forceRefresh) {
     if (!db) { showErrBanner('Koneksi Supabase belum siap. Tunggu sebentar lalu klik Refresh.'); return; }
+    
+    // Cek cache jika tidak force refresh
+    if (!forceRefresh) {
+      var cached = loadFromCache();
+      if (cached) {
+        masterData = cached.masterData;
+        allData = cached.allData;
+        setStatus('⚡ Dimuat dari cache (' + cached.timestamp + ')');
+        updateStats();
+        updateDeptChips();
+        applyFilter();
+        // Fetch di background untuk update cache
+        fetchAndCacheInBackground();
+        return;
+      }
+    }
+
     var btn = document.getElementById('btnReload');
     btn.classList.add('spinning');
     showErrBanner(null);
-    setStatus('Memuat...');
+    setStatus('Memuat dari server...');
 
     var p1 = db.from('data_master').select('*')
                 .then(function(r){ return r; })
@@ -714,10 +735,70 @@
       });
 
       allData = rawData;
+      saveToCache();
       setStatus('');
       updateStats();
       updateDeptChips();
       applyFilter();
+    });
+  }
+
+  function loadFromCache() {
+    try {
+      var cached = localStorage.getItem(CACHE_KEY);
+      if (!cached) return null;
+      var parsed = JSON.parse(cached);
+      var age = Date.now() - parsed.savedAt;
+      if (age > CACHE_TTL) return null; // Cache expired
+      return {
+        masterData: parsed.masterData,
+        allData: parsed.allData,
+        timestamp: new Date(parsed.savedAt).toLocaleTimeString()
+      };
+    } catch (e) {
+      console.warn('Cache read error:', e);
+      return null;
+    }
+  }
+
+  function saveToCache() {
+    try {
+      var payload = {
+        masterData: masterData,
+        allData: allData,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.warn('Cache write error:', e);
+    }
+  }
+
+  function fetchAndCacheInBackground() {
+    var p1 = db.from('data_master').select('*').then(function(r){ return r.data; }).catch(function(){ return []; });
+    var p2 = fetchAllRows().catch(function(){ return []; });
+    Promise.all([p1, p2]).then(function(res) {
+      if (res[0] && res[0].length) masterData = res[0];
+      if (res[1] && res[1].length) {
+        var today = new Date(); today.setHours(0,0,0,0);
+        res[1].forEach(function(r) {
+          var jenis = r.jenis_barang || '';
+          var limitHari = getLimit(r.dept, jenis);
+          if (r.expired_date) {
+            var expD = new Date(r.expired_date); expD.setHours(0,0,0,0);
+            var diff = Math.ceil((expD - today) / 86400000);
+            r._status = diff < 0 ? 'EXPIRED' : (limitHari > 0 && diff <= limitHari ? 'WARNING' : 'AMAN');
+          } else {
+            r._status = r.remarks || 'AMAN';
+          }
+        });
+        allData = res[1];
+        saveToCache();
+        updateStats();
+        updateDeptChips();
+        applyFilter();
+        console.log('Background cache updated');
+      }
     });
   }
 
@@ -780,7 +861,13 @@
 
     filtered = allData.filter(function(r) {
       if (activeDept !== 'ALL' && r.dept !== activeDept) return false;
-      if (status !== 'ALL' && r._status !== status) return false;
+      if (status !== 'ALL') {
+        if (status === 'TERDISPLAY' || status === 'TAKEOUT') {
+          if (String(r.remarks || '').toUpperCase() !== status) return false;
+        } else {
+          if (r._status !== status) return false;
+        }
+      }
       if (search) {
         var hay = ((r.deskripsi_barang || '') + ' ' + (r.barcode || '') + ' ' + (r.dept || '')).toLowerCase();
         if (hay.indexOf(search) < 0) return false;

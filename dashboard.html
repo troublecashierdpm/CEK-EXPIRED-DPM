@@ -458,8 +458,9 @@
   var filtered   = [];
   var activeDept = 'ALL';
   var curPage    = 1;
-  var perPage    = 30;
-  var BATCH      = 1000;
+  // Kurangi ukuran batch dari 1000 ke 500 agar payload per request lebih ringan dan cepat
+  var perPage    = 50;
+  var BATCH      = 500;
 
   var DEPTS = ['GROCERY','DND','GMS','HBC','DELSUSBAK','PRODUCE','NONFOOD','RTC'];
   var VALID_NIKS = ['2510009','1612004','2410035','1503008','1504215','2408182',

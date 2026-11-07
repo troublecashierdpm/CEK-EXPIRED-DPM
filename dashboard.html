@@ -1017,6 +1017,12 @@
   /* ── MODAL EDIT ── */
   function openEditModal(itemStr) {
     var item = typeof itemStr === 'string' ? JSON.parse(itemStr) : itemStr;
+    
+    var deptOptions = '';
+    DEPTS.forEach(function(d) {
+      deptOptions += '<option value="' + d + '" ' + (d === item.dept ? 'selected' : '') + '>' + d + '</option>';
+    });
+
     var katOptions = '<option value="">-- Pilih Kategori --</option>';
     masterData.forEach(function(m) {
       if (m.dept === item.dept) {
@@ -1031,6 +1037,8 @@
     var html = '<div class="modal-box" onclick="event.stopPropagation()">'
              + '<h3 style="margin-bottom:12px;font-size:16px;">✏️ Edit Data</h3>'
              + fotoHtml
+             + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Departemen</label>'
+             + '<select id="editDept" onchange="onEditDeptChange()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;box-sizing:border-box;">' + deptOptions + '</select></div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Nama Barang</label>'
              + '<input type="text" id="editNama" value="' + (item.deskripsi_barang || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Kategori</label>'
@@ -1053,16 +1061,40 @@
     document.getElementById('modalBg').classList.add('open');
   }
 
+  function onEditDeptChange() {
+    var selDept = document.getElementById('editDept').value;
+    var katSelect = document.getElementById('editKat');
+    var katOptions = '<option value="">-- Pilih Kategori --</option>';
+    masterData.forEach(function(m) {
+      if (m.dept === selDept) {
+        katOptions += '<option value="' + m.kategori + '">' + m.kategori + '</option>';
+      }
+    });
+    katSelect.innerHTML = katOptions;
+  }
+
   function saveEdit(id) {
     var remarksVal = document.getElementById('editRemarks').value;
+    var deptVal = document.getElementById('editDept').value;
+    var katVal = document.getElementById('editKat').value;
+    var expValue = document.getElementById('editExp').value;
+
+    var masterObj = masterData.find(function(m) { return m.dept === deptVal && m.kategori === katVal; });
+    var limitHari = masterObj ? parseInt(masterObj.limit) || 0 : 0;
+    var today = new Date(); today.setHours(0,0,0,0);
+    var expDate = new Date(expValue); expDate.setHours(0,0,0,0);
+    var diffDays = Math.ceil((expDate - today) / 86400000);
+    var remarksStatus = diffDays <= limitHari ? "WARNING" : "AMAN";
+
     var data = {
+      dept:             deptVal,
       deskripsi_barang: document.getElementById('editNama').value,
-      jenis_barang:     document.getElementById('editKat').value,
-      remarks:          remarksVal,
-      takeout_date:     remarksVal === 'TAKEOUT' ? new Date().toISOString().split('T')[0] : null,
+      jenis_barang:     katVal,
+      remarks:          remarksVal === 'TAKEOUT' ? 'TAKEOUT' : remarksStatus,
+      takeout_date:     remarksVal === 'TAKEOUT' ? (document.getElementById('editExp').dataset.takeoutDate || new Date().toISOString().split('T')[0]) : null,
       takeout_by:       remarksVal === 'TAKEOUT' ? document.getElementById('editTakeoutBy').value : null,
       qty:              parseInt(document.getElementById('editQty').value),
-      expired_date:     document.getElementById('editExp').value
+      expired_date:     expValue
     };
     db.from('data_expired').update(data).eq('id', id)
       .then(function(res) {

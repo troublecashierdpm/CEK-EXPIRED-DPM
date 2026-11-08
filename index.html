@@ -214,7 +214,7 @@
 
     <label>Barcode / SKU</label>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <input type="text" id="barcode" placeholder="Scan/Ketik" style="margin-bottom:0;">
+      <input type="text" id="barcode" placeholder="Scan/Ketik" style="margin-bottom:0;" onchange="lookupBarcodeOrSku(this.value)" onblur="lookupBarcodeOrSku(this.value)">
       <button type="button" class="main-btn btn-scan"
         style="width:60px;padding:0;flex-shrink:0;"
         onclick="startScanning()" title="Scan Live">📷</button>
@@ -286,6 +286,7 @@
   var BUCKET_NAME = 'inventory-photos'; // Nama bucket Supabase Storage (harus Public)
 
   var db           = null;
+  var masterItem   = [];     // Cache data dari tabel master_item
   var selectedDept = "";
   var fotoFile     = null;   // File asli foto (untuk upload ke Storage)
   var previewSrc   = "";     // Data URL hanya untuk preview di browser
@@ -342,6 +343,10 @@
       db.from('data_master').select('*').then(function(res) {
         if (!res.error && res.data && res.data.length > 0) masterData = res.data;
       });
+      // Fetch master_item untuk auto-fill
+      db.from('master_item').select('*').then(function(res) {
+        if (!res.error && res.data) masterItem = res.data;
+      });
     }
 
     document.getElementById('galleryInput').addEventListener('change', function(e) {
@@ -350,6 +355,29 @@
       this.value = '';
     });
   };
+
+  /* ── AUTO-FILL DARI MASTER ── */
+  function lookupBarcodeOrSku(val) {
+    if (!val) return;
+    var cleanVal = val.trim();
+    var item = masterItem.find(function(m) {
+      var b = String(m.barcode || '').trim();
+      var s = String(m.sku || '').trim();
+      var sClean = s.replace(/^0+/, '');
+      var inputClean = cleanVal.replace(/^0+/, '');
+      return b === cleanVal || s === cleanVal || sClean === inputClean;
+    });
+
+    if (item) {
+      document.getElementById('deskripsi').value = item.deskripsi || '';
+      var katSelect = document.getElementById('kategori');
+      if (katSelect) {
+        katSelect.value = item.kategori || '';
+        katSelect.dispatchEvent(new Event('change'));
+      }
+      showToast('✅ Barang ditemukan: ' + (item.deskripsi || ''), 't-success');
+    }
+  }
 
   /* ═══════════════════════════════════════
      UPLOAD FOTO KE SUPABASE STORAGE
@@ -481,6 +509,7 @@
     if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
     showToast('✅ Barcode: ' + text, 't-success');
     stopScanning();
+    lookupBarcodeOrSku(text);
   }
 
   function stopScanning() {

@@ -271,6 +271,7 @@
 
   var db           = null;
   var masterItem   = [];     // Cache data dari tabel master_item
+  var masterItemReady = false;
   var selectedDept = "";
   var fotoFile     = null;   // File asli foto (untuk upload ke Storage)
   var previewSrc   = "";     // Data URL hanya untuk preview di browser
@@ -332,14 +333,34 @@
     }
   };
 
+  var masterItemReady = false;
+  
   function fetchMasterItem() {
+    masterItemReady = false;
     var from = 0, batch = 1000;
+    console.log('Starting master_item fetch...');
+    
     function next() {
       db.from('master_item').select('*').range(from, from + batch - 1).then(function(res) {
         if (res.error) { console.error('Fetch master_item error:', res.error); return; }
-        if (res.data) masterItem = masterItem.concat(res.data);
-        console.log('Fetched master_item batch:', res.data ? res.data.length : 0, 'Total:', masterItem.length);
-        if (res.data && res.data.length === batch) { from += batch; next(); }
+        if (res.data && res.data.length > 0) {
+          masterItem = masterItem.concat(res.data);
+          console.log('✓ Batch:', res.data.length, 'Total:', masterItem.length);
+          if (res.data.length === batch) {
+            from += batch;
+            next();
+          } else {
+            console.log('✓ All master_item loaded:', masterItem.length);
+            masterItemReady = true;
+            showToast('✅ Data master siap (' + masterItem.length + ' items)', 't-success', 2000);
+          }
+        } else {
+          console.log('✓ All master_item loaded:', masterItem.length);
+          masterItemReady = true;
+          if (masterItem.length > 0) showToast('✅ Data master siap (' + masterItem.length + ' items)', 't-success', 2000);
+        }
+      }).catch(function(err) {
+        console.error('Fetch error:', err);
       });
     }
     next();
@@ -367,11 +388,17 @@
   function validateBarcodeInput() {
     var val = document.getElementById('barcode').value;
     if (!val) { showToast('⚠️ Barcode/SKU masih kosong!', 't-error'); return; }
+    if (!masterItemReady) {
+      showToast('⏳ Tunggu sebentar, data master masih loading...', 't-error', 3000);
+      return;
+    }
     lookupBarcodeOrSku(val, true);
   }
 
   function lookupBarcodeOrSku(val, isValidate) {
     if (!val) return;
+    console.log('Looking up:', val, 'masterItem count:', masterItem.length);
+    
     var cleanVal = String(val).trim();
     
     var item = masterItem.find(function(m) {
@@ -383,10 +410,13 @@
       var inputClean = cleanVal.replace(/^0+/, '');
       
       // Match barcode exact atau SKU (dengan/tanpa leading zero)
-      return b === cleanVal || s === cleanVal || sClean === inputClean || s === inputClean;
+      var match = b === cleanVal || s === cleanVal || sClean === inputClean || s === inputClean;
+      if (match) console.log('✓ Match found:', m);
+      return match;
     });
 
     if (item) {
+      console.log('Found item:', item);
       document.getElementById('deskripsi').value = item.description || '';
       var katInput = document.getElementById('kategori');
       if (katInput) {
@@ -402,6 +432,7 @@
       }
       showToast('✅ Barang ditemukan: ' + (item.description || ''), 't-success');
     } else {
+      console.log('Not found. Input:', cleanVal, 'Total items:', masterItem.length);
       if (isValidate) showToast('❌ Barcode/SKU tidak ditemukan di master data.', 't-error', 4000);
     }
   }

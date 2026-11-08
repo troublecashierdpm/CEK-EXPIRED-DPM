@@ -372,17 +372,22 @@
 
   function lookupBarcodeOrSku(val, isValidate) {
     if (!val) return;
-    var cleanVal = val.trim();
+    var cleanVal = String(val).trim();
+    
     var item = masterItem.find(function(m) {
-      var b = String(m.barcode || '').trim();
-      var s = String(m.sku || '').trim();
+      var b = String(m.barcode || '');
+      var s = String(m.sku || '');
+      
+      // Hilangkan leading zero untuk perbandingan SKU 7/8 digit
       var sClean = s.replace(/^0+/, '');
       var inputClean = cleanVal.replace(/^0+/, '');
-      return b === cleanVal || s === cleanVal || sClean === inputClean;
+      
+      // Match barcode exact atau SKU (dengan/tanpa leading zero)
+      return b === cleanVal || s === cleanVal || sClean === inputClean || s === inputClean;
     });
 
     if (item) {
-      document.getElementById('deskripsi').value = item.deskripsi || '';
+      document.getElementById('deskripsi').value = item.description || '';
       var katInput = document.getElementById('kategori');
       if (katInput) {
         katInput.value = item.kategori || '';
@@ -395,7 +400,7 @@
           }
         });
       }
-      showToast('✅ Barang ditemukan: ' + (item.deskripsi || ''), 't-success');
+      showToast('✅ Barang ditemukan: ' + (item.description || ''), 't-success');
     } else {
       if (isValidate) showToast('❌ Barcode/SKU tidak ditemukan di master data.', 't-error', 4000);
     }

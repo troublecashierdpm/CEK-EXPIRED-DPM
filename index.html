@@ -330,11 +330,17 @@
       });
       // Fetch master_item untuk auto-fill (batching)
       fetchMasterItem();
+      // Fallback: force ready setelah 10 detik jika fetch lambat
+      setTimeout(function() {
+        if (!masterItemReady && masterItem.length > 0) {
+          masterItemReady = true;
+          console.log('⚠ Timeout fallback: masterItemReady forced to true. Items:', masterItem.length);
+          showToast('⚠️ Data master siap (loading timeout)', 't-error', 2000);
+        }
+      }, 10000);
     }
   };
 
-  var masterItemReady = false;
-  
   function fetchMasterItem() {
     masterItemReady = false;
     var from = 0, batch = 1000;

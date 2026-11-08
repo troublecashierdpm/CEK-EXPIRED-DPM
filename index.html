@@ -200,9 +200,8 @@
     </div>
     <div class="dept-hint" id="deptHint">⚠️ Pilih salah satu departement terlebih dahulu!</div>
     <label>Kategori Produk <span style="color:var(--danger)">*</span></label>
-    <select id="kategori" disabled>
-      <option value="">Pilih Dept terlebih dahulu...</option>
-    </select>
+    <input type="text" id="kategori" list="katList" placeholder="Pilih Dept/Ketik Kategori" disabled>
+    <datalist id="katList"></datalist>
   </div>
 
   <div class="card">
@@ -582,12 +581,19 @@
     if (el) el.classList.add('active');
     document.getElementById('cardDept').classList.remove('dept-error');
     document.getElementById('deptHint').classList.remove('show');
-    var katSelect = document.getElementById("kategori");
-    katSelect.innerHTML = '<option value="">-- Pilih Kategori --</option>';
+    
+    var katInput = document.getElementById("kategori");
+    var katList = document.getElementById("katList");
+    katInput.value = '';
+    katList.innerHTML = '';
     masterData.forEach(function(m) {
-      if (m.dept === dept) katSelect.innerHTML += '<option value="' + m.kategori + '">' + m.kategori + '</option>';
+      if (m.dept === dept) {
+        var opt = document.createElement('option');
+        opt.value = m.kategori;
+        katList.appendChild(opt);
+      }
     });
-    katSelect.disabled = false;
+    katInput.disabled = false;
   }
 
   function saveData() {

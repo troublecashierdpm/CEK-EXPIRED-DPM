@@ -194,6 +194,7 @@
       <button type="button" class="main-btn btn-scan" style="width:60px;padding:0;flex-shrink:0;" onclick="startScanning()" title="Scan Live">📷</button>
       <button type="button" class="main-btn" style="width:auto;padding:0 12px;flex-shrink:0;background:var(--success);color:#fff;font-size:12px;" onclick="validateBarcodeInput()" title="Validasi Barcode/SKU">✔️</button>
     </div>
+    <div id="masterStatus" style="font-size:11px;padding:4px 8px;border-radius:4px;margin-bottom:10px;background:#fef3c7;color:#92400e;">⏳ Memuat data master...</div>
 
     <button id="btnStop" type="button" class="main-btn" style="display:none;background:var(--danger);color:white;margin-bottom:10px;" onclick="stopScanning()">❌ Hentikan Scanner</button>
     <div id="scannerWrap">
@@ -272,6 +273,20 @@
   var db           = null;
   var masterItem   = [];     // Cache data dari tabel master_item
   var masterItemReady = false;
+
+  function updateMasterStatus(ready, count) {
+    var statusEl = document.getElementById('masterStatus');
+    if (!statusEl) return;
+    if (ready) {
+      statusEl.style.background = '#d1fae5';
+      statusEl.style.color = '#065f46';
+      statusEl.innerHTML = '✅ Data master siap (' + count + ' items)';
+    } else {
+      statusEl.style.background = '#fef3c7';
+      statusEl.style.color = '#92400e';
+      statusEl.innerHTML = '⏳ Memuat data master...';
+    }
+  }
   var selectedDept = "";
   var fotoFile     = null;   // File asli foto (untuk upload ke Storage)
   var previewSrc   = "";     // Data URL hanya untuk preview di browser
@@ -359,6 +374,7 @@
           masterItem = JSON.parse(cachedData);
           masterItemReady = true;
           console.log('✓ Loaded from cache:', masterItem.length, 'items');
+          updateMasterStatus(true, masterItem.length);
           showToast('✅ Data master siap (cache)', 't-success', 2000);
           return;
         } catch(e) {
@@ -399,6 +415,7 @@
             masterItem = allData;
             masterItemReady = true;
             saveCacheWithRetry();
+            updateMasterStatus(true, masterItem.length);
             console.log('✓ All fetched:', masterItem.length, 'items');
             showToast('✅ Data master siap (' + masterItem.length + ' items)', 't-success', 2000);
           }
@@ -406,6 +423,7 @@
           masterItem = allData;
           masterItemReady = true;
           saveCacheWithRetry();
+          updateMasterStatus(true, masterItem.length);
           console.log('✓ Fetch complete:', masterItem.length, 'items');
           showToast('✅ Data master siap (' + masterItem.length + ' items)', 't-success', 2000);
         }

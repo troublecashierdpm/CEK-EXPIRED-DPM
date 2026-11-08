@@ -449,12 +449,17 @@
     document.getElementById('btnStop').style.display = 'flex';
     scanLoopActive = true;
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false })
-      .catch(function() { return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); })
+    var constraints = isIOS
+      ? { video: { facingMode: { ideal: 'environment' } }, audio: false }
+      : { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+      .catch(function() { return navigator.mediaDevices.getUserMedia({ video: true, audio: false }); })
       .then(function(stream) {
         scanStream = stream;
         video.srcObject = stream;
         video.setAttribute('playsinline', true);
+        video.muted = true;
         video.play().catch(function(e) { console.warn("Auto-play error:", e); });
         video.addEventListener('loadedmetadata', function() {
           hasBarcodeAPI ? startBarcodeDetectorLoop(video) : startZxingLoop(video);

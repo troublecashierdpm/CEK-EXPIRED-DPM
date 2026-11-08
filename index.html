@@ -203,6 +203,10 @@
       </div>
     </div>
 
+    <input type="file" id="galleryInput" accept="image/*" style="display:none">
+    <input type="file" id="iosCameraInput" accept="image/*" capture="environment" style="display:none">
+    <button id="btnIOSCamera" type="button" class="main-btn" style="display:none;background:#4361ee;color:white;margin-bottom:10px;" onclick="document.getElementById('iosCameraInput').click()">📸 Scan dengan Kamera (iOS)</button>
+
     <label>Deskripsi Nama Barang</label>
     <input type="text" id="deskripsi" placeholder="Hasil scan/input...">
 
@@ -346,6 +350,16 @@
       decodeFromImageFile(e.target.files[0]);
       this.value = '';
     });
+
+    document.getElementById('iosCameraInput').addEventListener('change', function(e) {
+      if (!e.target.files || !e.target.files.length) return;
+      decodeFromImageFile(e.target.files[0]);
+      this.value = '';
+    });
+
+    if (isIOS) {
+      document.getElementById('btnIOSCamera').style.display = 'block';
+    }
   };
 
   /* ── AUTO-FILL DARI MASTER ── */

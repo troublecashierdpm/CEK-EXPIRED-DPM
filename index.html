@@ -408,24 +408,31 @@
           allData = allData.concat(res.data);
           console.log('✓ Batch', Math.floor(from/batch)+1, ':', res.data.length, 'items. Total:', allData.length);
           
+          // Ready setelah batch pertama, lanjut fetch sisanya di background
+          if (!masterItemReady && allData.length > 0) {
+            masterItem = allData;
+            masterItemReady = true;
+            updateMasterStatus(true, masterItem.length);
+            showToast('✅ Data master siap (' + masterItem.length + ' items, loading...)', 't-success', 2000);
+          }
+          
           if (res.data.length === batch) {
             from += batch;
             fetchBatch();
           } else {
             masterItem = allData;
-            masterItemReady = true;
             saveCacheWithRetry();
             updateMasterStatus(true, masterItem.length);
             console.log('✓ All fetched:', masterItem.length, 'items');
-            showToast('✅ Data master siap (' + masterItem.length + ' items)', 't-success', 2000);
           }
         } else {
-          masterItem = allData;
-          masterItemReady = true;
-          saveCacheWithRetry();
-          updateMasterStatus(true, masterItem.length);
-          console.log('✓ Fetch complete:', masterItem.length, 'items');
-          showToast('✅ Data master siap (' + masterItem.length + ' items)', 't-success', 2000);
+          if (allData.length > 0) {
+            masterItem = allData;
+            masterItemReady = true;
+            saveCacheWithRetry();
+            updateMasterStatus(true, masterItem.length);
+            console.log('✓ Fetch complete:', masterItem.length, 'items');
+          }
         }
       }).catch(function(err) {
         console.error('Fetch catch error:', err);

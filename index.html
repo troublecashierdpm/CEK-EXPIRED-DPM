@@ -276,6 +276,11 @@
   var fotoFile     = null;   // File asli foto (untuk upload ke Storage)
   var previewSrc   = "";     // Data URL hanya untuk preview di browser
 
+  // Cache config
+  var CACHE_KEY = 'masterItemCache';
+  var CACHE_TS_KEY = 'masterItemCacheTs';
+  var CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 jam dalam ms
+
   var scanStream     = null;
   var scanLoopActive = false;
   var isIOS          = false;
@@ -342,34 +347,84 @@
   };
 
   function fetchMasterItem() {
-    masterItemReady = false;
-    var from = 0, batch = 1000;
-    console.log('Starting master_item fetch...');
+    // Cek cache dulu
+    var cachedData = localStorage.getItem(CACHE_KEY);
+    var cachedTs = localStorage.getItem(CACHE_TS_KEY);
+    var now = Date.now();
     
-    function next() {
+    if (cachedData && cachedTs) {
+      var age = now - parseInt(cachedTs);
+      if (age < CACHE_DURATION) {
+        try {
+          masterItem = JSON.parse(cachedData);
+          masterItemReady = true;
+          console.log('✓ Loaded from cache:', masterItem.length, 'items');
+          showToast('✅ Data master siap (cache)', 't-success', 2000);
+          return;
+        } catch(e) {
+          console.error('Cache parse error:', e);
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.removeItem(CACHE_TS_KEY);
+        }
+      } else {
+        localStorage.removeItem(CACHE_KEY);
+        localStorage.removeItem(CACHE_TS_KEY);
+      }
+    }
+    
+    console.log('Fetching master_item dari Supabase...');
+    var from = 0, batch = 1000, allData = [];
+    
+    function fetchBatch() {
       db.from('master_item').select('*').range(from, from + batch - 1).then(function(res) {
-        if (res.error) { console.error('Fetch master_item error:', res.error); return; }
+        if (res.error) {
+          console.error('Fetch error:', res.error);
+          if (allData.length > 0) {
+            masterItem = allData;
+            masterItemReady = true;
+            saveCacheWithRetry();
+            showToast('⚠️ Partial load (' + allData.length + ' items)', 't-error', 2000);
+          }
+          return;
+        }
+        
         if (res.data && res.data.length > 0) {
-          masterItem = masterItem.concat(res.data);
-          console.log('✓ Batch:', res.data.length, 'Total:', masterItem.length);
+          allData = allData.concat(res.data);
+          console.log('✓ Batch', Math.floor(from/batch)+1, ':', res.data.length, 'items. Total:', allData.length);
+          
           if (res.data.length === batch) {
             from += batch;
-            next();
+            fetchBatch();
           } else {
-            console.log('✓ All master_item loaded:', masterItem.length);
+            masterItem = allData;
             masterItemReady = true;
+            saveCacheWithRetry();
+            console.log('✓ All fetched:', masterItem.length, 'items');
             showToast('✅ Data master siap (' + masterItem.length + ' items)', 't-success', 2000);
           }
         } else {
-          console.log('✓ All master_item loaded:', masterItem.length);
+          masterItem = allData;
           masterItemReady = true;
-          if (masterItem.length > 0) showToast('✅ Data master siap (' + masterItem.length + ' items)', 't-success', 2000);
+          saveCacheWithRetry();
+          console.log('✓ Fetch complete:', masterItem.length, 'items');
+          showToast('✅ Data master siap (' + masterItem.length + ' items)', 't-success', 2000);
         }
       }).catch(function(err) {
-        console.error('Fetch error:', err);
+        console.error('Fetch catch error:', err);
       });
     }
-    next();
+    
+    fetchBatch();
+  }
+  
+  function saveCacheWithRetry() {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(masterItem));
+      localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+      console.log('✓ Cache saved');
+    } catch(e) {
+      console.warn('Cache save failed (quota?):', e.message);
+    }
   }
 
   document.addEventListener('DOMContentLoaded', function() {

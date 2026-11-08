@@ -389,10 +389,13 @@
     }
     
     console.log('Fetching master_item dari Supabase...');
+    console.log('DB client:', db ? 'OK' : 'NULL');
     var from = 0, batch = 1000, allData = [];
     
     function fetchBatch() {
+      console.log('Fetching range:', from, 'to', from + batch - 1);
       db.from('master_item').select('*').range(from, from + batch - 1).then(function(res) {
+        console.log('Response:', res);
         if (res.error) {
           console.error('Fetch error:', res.error);
           if (allData.length > 0) {

@@ -185,10 +185,29 @@
     </a>
   </div>
 
-  <div class="card" id="cardDept">
-    <div class="card-title">🏢 Klasifikasi Barang</div>
+  <div class="card">
+    <div class="card-title">🔍 Scan & Identifikasi</div>
+    
+    <label>Barcode / SKU <span style="color:var(--danger)">*</span></label>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input type="text" id="barcode" placeholder="Scan/Ketik..." style="margin-bottom:0;" oninput="lookupBarcodeOrSku(this.value)" onchange="lookupBarcodeOrSku(this.value)" onblur="lookupBarcodeOrSku(this.value)">
+      <button type="button" class="main-btn btn-scan" style="width:60px;padding:0;flex-shrink:0;" onclick="startScanning()" title="Scan Live">📷</button>
+    </div>
+
+    <button id="btnStop" type="button" class="main-btn" style="display:none;background:var(--danger);color:white;margin-bottom:10px;" onclick="stopScanning()">❌ Hentikan Scanner</button>
+    <div id="scannerWrap">
+      <video id="scannerVideo" autoplay muted playsinline webkit-playsinline></video>
+      <div id="scannerOverlay">
+        <div class="aim-box"></div>
+        <div class="aim-label">Arahkan barcode ke dalam kotak</div>
+      </div>
+    </div>
+
+    <label>Deskripsi Nama Barang</label>
+    <input type="text" id="deskripsi" placeholder="Hasil scan/input...">
+
     <label>Pilih Departement <span style="color:var(--danger)">*</span></label>
-    <div class="dept-group">
+    <div class="dept-group" id="cardDept">
       <div class="btn-dept" onclick="selectDept('GROCERY', this)">GROCERY</div>
       <div class="btn-dept" onclick="selectDept('DND', this)">DND</div>
       <div class="btn-dept" onclick="selectDept('GMS', this)">GMS</div>
@@ -199,49 +218,23 @@
       <div class="btn-dept" onclick="selectDept('RTC', this)">RTC</div>
     </div>
     <div class="dept-hint" id="deptHint">⚠️ Pilih salah satu departement terlebih dahulu!</div>
+    
     <label>Kategori Produk <span style="color:var(--danger)">*</span></label>
-    <input type="text" id="kategori" list="katList" placeholder="Pilih Dept/Ketik Kategori" disabled>
+    <input type="text" id="kategori" list="katList" placeholder="Pilih Dept/Ketik Kategori">
     <datalist id="katList"></datalist>
-  </div>
 
-  <div class="card">
-    <div class="card-title">🔍 Identitas & Lokasi</div>
-    <div class="grid-2">
+    <div class="grid-2" style="margin-top:10px;">
       <div><label>Gondola</label><input type="text" id="gondola" placeholder="A-01"></div>
       <div><label>Selving</label><input type="text" id="selving" placeholder="01"></div>
     </div>
+  </div>
 
-    <label>Barcode / SKU</label>
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <input type="text" id="barcode" placeholder="Scan/Ketik" style="margin-bottom:0;" oninput="lookupBarcodeOrSku(this.value)" onchange="lookupBarcodeOrSku(this.value)" onblur="lookupBarcodeOrSku(this.value)">
-      <button type="button" class="main-btn btn-scan"
-        style="width:60px;padding:0;flex-shrink:0;"
-        onclick="startScanning()" title="Scan Live">📷</button>
-      <button type="button" class="main-btn"
-        style="width:60px;padding:0;background:#e2e8f0;flex-shrink:0;"
-        onclick="pickFromGallery()" title="Pilih dari Galeri">📂</button>
+  <div class="card">
+    <div class="card-title">🗓️ Detail Kadaluarsa</div>
+    <div class="grid-2">
+      <div><label>Jumlah (QTY)</label><input type="number" id="qty" value="1" min="1"></div>
+      <div><label>Tgl Kadaluarsa <span style="color:var(--danger)">*</span></label><input type="date" id="expiredDate"></div>
     </div>
-
-    <button id="btnStop" type="button" class="main-btn"
-      style="display:none;background:var(--danger);color:white;margin-bottom:10px;"
-      onclick="stopScanning()">❌ Hentikan Scanner</button>
-
-    <div id="scannerWrap">
-      <video id="scannerVideo" autoplay muted playsinline webkit-playsinline></video>
-      <div id="scannerOverlay">
-        <div class="aim-box"></div>
-        <div class="aim-label">Arahkan barcode ke dalam kotak</div>
-      </div>
-    </div>
-
-    <input type="file" id="galleryInput" accept="image/*" style="display:none">
-
-    <div style="background:#fff9db;border-left:4px solid #fcc419;padding:8px 12px;border-radius:8px;margin-bottom:15px;">
-      <p id="tipText" style="margin:0;font-size:10px;color:#856404;line-height:1.5;"></p>
-    </div>
-
-    <label>Deskripsi Nama Barang</label>
-    <input type="text" id="deskripsi" placeholder="Masukkan nama produk lengkap">
   </div>
 
   <div class="card">
@@ -385,8 +378,14 @@
       var katInput = document.getElementById('kategori');
       if (katInput) {
         katInput.value = item.kategori || '';
-        katInput.disabled = false;
-        katInput.dispatchEvent(new Event('change'));
+      }
+      if (item.dept) {
+        var deptBtns = document.querySelectorAll('.btn-dept');
+        deptBtns.forEach(function(b) {
+          if (b.textContent.trim().toUpperCase() === String(item.dept).trim().toUpperCase()) {
+            selectDept(b.textContent.trim(), b);
+          }
+        });
       }
       showToast('✅ Barang ditemukan: ' + (item.deskripsi || ''), 't-success');
     }

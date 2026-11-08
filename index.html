@@ -213,7 +213,7 @@
 
     <label>Barcode / SKU</label>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <input type="text" id="barcode" placeholder="Scan/Ketik" style="margin-bottom:0;" onchange="lookupBarcodeOrSku(this.value)" onblur="lookupBarcodeOrSku(this.value)">
+      <input type="text" id="barcode" placeholder="Scan/Ketik" style="margin-bottom:0;" oninput="lookupBarcodeOrSku(this.value)" onchange="lookupBarcodeOrSku(this.value)" onblur="lookupBarcodeOrSku(this.value)">
       <button type="button" class="main-btn btn-scan"
         style="width:60px;padding:0;flex-shrink:0;"
         onclick="startScanning()" title="Scan Live">📷</button>
@@ -342,10 +342,23 @@
       db.from('data_master').select('*').then(function(res) {
         if (!res.error && res.data && res.data.length > 0) masterData = res.data;
       });
-      // Fetch master_item untuk auto-fill
-      db.from('master_item').select('*').then(function(res) {
-        if (!res.error && res.data) masterItem = res.data;
+      // Fetch master_item untuk auto-fill (batching)
+      fetchMasterItem();
+    }
+  };
+
+  function fetchMasterItem() {
+    var from = 0, batch = 1000;
+    function next() {
+      db.from('master_item').select('*').range(from, from + batch - 1).then(function(res) {
+        if (res.error) { console.error('Fetch master_item error:', res.error); return; }
+        if (res.data) masterItem = masterItem.concat(res.data);
+        console.log('Fetched master_item batch:', res.data ? res.data.length : 0, 'Total:', masterItem.length);
+        if (res.data && res.data.length === batch) { from += batch; next(); }
       });
+    }
+    next();
+  }
     }
 
     document.getElementById('galleryInput').addEventListener('change', function(e) {
@@ -369,10 +382,11 @@
 
     if (item) {
       document.getElementById('deskripsi').value = item.deskripsi || '';
-      var katSelect = document.getElementById('kategori');
-      if (katSelect) {
-        katSelect.value = item.kategori || '';
-        katSelect.dispatchEvent(new Event('change'));
+      var katInput = document.getElementById('kategori');
+      if (katInput) {
+        katInput.value = item.kategori || '';
+        katInput.disabled = false;
+        katInput.dispatchEvent(new Event('change'));
       }
       showToast('✅ Barang ditemukan: ' + (item.deskripsi || ''), 't-success');
     }

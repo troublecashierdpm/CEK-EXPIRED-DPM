@@ -337,9 +337,12 @@
     isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     hasBarcodeAPI = ('BarcodeDetector' in window);
 
-    document.getElementById('tipText').innerHTML = isIOS
-      ? '<strong>📱 iOS:</strong> Pastikan Anda mengizinkan akses kamera. Tombol 📷 untuk scan langsung.'
-      : '<strong>💡 Tips:</strong> Tombol 📷 scan live otomatis. Tombol 📂 untuk scan dari foto di galeri.';
+    var tipEl = document.getElementById('tipText');
+    if (tipEl) {
+      tipEl.innerHTML = isIOS
+        ? '<strong>📱 iOS:</strong> Pastikan Anda mengizinkan akses kamera. Tombol 📷 untuk scan langsung.'
+        : '<strong>💡 Tips:</strong> Tombol 📷 scan live otomatis. Tombol 📂 untuk scan dari foto di galeri.';
+    }
 
     if (window.supabase && window.supabase.createClient) {
       db = window.supabase.createClient(SUPA_URL, SUPA_KEY);

@@ -771,6 +771,11 @@
       localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
     } catch (e) {
       console.warn('Cache write error:', e);
+      // Clear cache jika penuh
+      if (e.name === 'QuotaExceededError') {
+        localStorage.removeItem(CACHE_KEY);
+        console.log('Cache cleared due to quota exceeded');
+      }
     }
   }
 
@@ -938,7 +943,7 @@
       var imgHtml, fotoClass, fotoClick;
       if (fotoUrl) {
         imgHtml   = '<img src="' + fotoUrl.replace(/"/g,'&quot;') + '" loading="lazy" '
-                  + 'onerror="this.outerHTML=\'📦\';this.parentNode.classList.remove(\'clickable\')">';
+                  + 'onerror="var p=this.parentNode;this.outerHTML=\'📦\';if(p)p.classList.remove(\'clickable\')">';
         fotoClass = ' clickable';
         fotoClick = ' onclick="openModal(\'' + fotoUrl.replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\')"';
       } else {

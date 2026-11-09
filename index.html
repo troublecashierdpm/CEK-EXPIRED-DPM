@@ -502,10 +502,17 @@
 
     if (item) {
       console.log('Found item:', item);
+      console.log('item.kategori:', item.kategori);
+      console.log('item.description:', item.description);
+      console.log('item.dept:', item.dept);
+      
       document.getElementById('deskripsi').value = item.description || '';
       var katInput = document.getElementById('kategori');
+      console.log('katInput element:', katInput);
       if (katInput) {
         katInput.value = item.kategori || '';
+        console.log('Set kategori to:', item.kategori);
+      }
       }
       if (item.dept) {
         var deptBtns = document.querySelectorAll('.btn-dept');

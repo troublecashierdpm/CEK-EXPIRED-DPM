@@ -452,7 +452,7 @@
   //   2. Kalau masih ada yang belum NULL, satu batch bisa menyebabkan
   //      response terlalu besar → request timeout → dashboard tidak muat
   // ─────────────────────────────────────────────────────────────────
-  var COLS = 'id, dept, gondola, selving, barcode, deskripsi_barang, qty, expired_date, jenis_barang, input_date, remarks, takeout_date, takeout_by, link_foto, is_deleted, deleted_at';
+  var COLS = 'id, dept, gondola, selving, barcode, deskripsi_barang, qty, expired_date, jenis_barang, input_date, remarks, takeout_date, takeout_by, link_foto, "limit", is_deleted, deleted_at';
 
   var db         = null;
   var allData    = [];

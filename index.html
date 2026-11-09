@@ -273,6 +273,7 @@
   var db           = null;
   var masterItem   = [];     // Cache data dari tabel master_item
   var masterItemReady = false;
+  var currentItemLimit = 0; // Limit dari master_item untuk item yang sedang di-scan
 
   function updateMasterStatus(ready, count) {
     var statusEl = document.getElementById('masterStatus');
@@ -505,6 +506,9 @@
       console.log('item.kategori:', item.kategori);
       console.log('item.description:', item.description);
       console.log('item.dept:', item.dept);
+      console.log('item.limit:', item.limit);
+      
+      currentItemLimit = item.limit || 0; // Simpan limit dari master_item
       
       document.getElementById('deskripsi').value = item.description || '';
       
@@ -777,7 +781,7 @@
     if (!db)       { showToast('❌ Koneksi database tidak tersedia.', 't-error'); return; }
 
     var masterObj = masterData.find(function(m) { return m.dept === selectedDept && m.kategori === katValue; });
-    var limitHari = masterObj ? parseInt(masterObj.limit) || 0 : 0;
+    var limitHari = currentItemLimit || (masterObj ? parseInt(masterObj.limit) || 0 : 0);
     var today = new Date(); today.setHours(0,0,0,0);
     var expDate = new Date(expValue); expDate.setHours(0,0,0,0);
     var diffDays = Math.ceil((expDate - today) / 86400000);

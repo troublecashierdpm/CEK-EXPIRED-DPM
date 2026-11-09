@@ -525,9 +525,13 @@
       // Set kategori setelah selectDept
       var katInput = document.getElementById('kategori');
       console.log('katInput element:', katInput);
+      console.log('item.kategori exists?', !!item.kategori);
       if (katInput && item.kategori) {
         katInput.value = item.kategori || '';
         console.log('Set kategori to:', item.kategori);
+        console.log('Current katInput.value:', katInput.value);
+      } else {
+        console.log('katInput:', katInput, 'item.kategori:', item.kategori);
       }
       showToast('✅ Barang ditemukan: ' + (item.description || ''), 't-success');
     } else {

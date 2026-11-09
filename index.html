@@ -507,12 +507,8 @@
       console.log('item.dept:', item.dept);
       
       document.getElementById('deskripsi').value = item.description || '';
-      var katInput = document.getElementById('kategori');
-      console.log('katInput element:', katInput);
-      if (katInput) {
-        katInput.value = item.kategori || '';
-        console.log('Set kategori to:', item.kategori);
-      }
+      
+      // Set dept dulu, baru kategori (karena selectDept clear kategori field)
       if (item.dept) {
         var deptBtns = document.querySelectorAll('.btn-dept');
         deptBtns.forEach(function(b) {
@@ -520,6 +516,14 @@
             selectDept(b.textContent.trim(), b);
           }
         });
+      }
+      
+      // Set kategori setelah selectDept
+      var katInput = document.getElementById('kategori');
+      console.log('katInput element:', katInput);
+      if (katInput && item.kategori) {
+        katInput.value = item.kategori || '';
+        console.log('Set kategori to:', item.kategori);
       }
       showToast('✅ Barang ditemukan: ' + (item.description || ''), 't-success');
     } else {

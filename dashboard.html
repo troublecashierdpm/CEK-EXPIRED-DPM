@@ -394,6 +394,11 @@
         <option value="dept_asc">Dept A–Z</option>
         <option value="input_date_desc">Input Terbaru</option>
       </select>
+      <select class="filter-sel" id="fRTC" onchange="applyFilter()">
+        <option value="ALL">Semua Item</option>
+        <option value="RTC">🏷️ RTC Only</option>
+        <option value="NON_RTC">Non-RTC Only</option>
+      </select>
       <button class="btn-del-selected" id="btnDelSelected" onclick="deleteSelected()">
         🗑️ Hapus Terpilih (<span id="selectedCount">0</span>)
       </button>
@@ -863,6 +868,7 @@
     var search  = document.getElementById('searchBox').value.toLowerCase().trim();
     var status  = document.getElementById('fStatus').value;
     var sortVal = document.getElementById('fSort').value;
+    var rtcFilter = document.getElementById('fRTC').value;
 
     filtered = allData.filter(function(r) {
       if (activeDept !== 'ALL' && r.dept !== activeDept) return false;
@@ -873,6 +879,8 @@
           if (r._status !== status) return false;
         }
       }
+      if (rtcFilter === 'RTC' && !r.is_rtc) return false;
+      if (rtcFilter === 'NON_RTC' && r.is_rtc) return false;
       if (search) {
         var hay = ((r.deskripsi_barang || '') + ' ' + (r.barcode || '') + ' ' + (r.dept || '')).toLowerCase();
         if (hay.indexOf(search) < 0) return false;

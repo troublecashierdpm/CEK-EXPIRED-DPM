@@ -452,7 +452,7 @@
   //   2. Kalau masih ada yang belum NULL, satu batch bisa menyebabkan
   //      response terlalu besar → request timeout → dashboard tidak muat
   // ─────────────────────────────────────────────────────────────────
-  var COLS = 'id, dept, gondola, selving, barcode, deskripsi_barang, qty, expired_date, jenis_barang, input_date, remarks, takeout_date, takeout_by, link_foto, "limit", is_deleted, deleted_at';
+  var COLS = 'id, dept, gondola, selving, barcode, deskripsi_barang, qty, expired_date, jenis_barang, input_date, remarks, takeout_date, takeout_by, link_foto, "limit", is_rtc, is_deleted, deleted_at';
 
   var db         = null;
   var allData    = [];
@@ -967,7 +967,7 @@
         + '<td class="td-mono">' + fmtDate(r.input_date) + '</td>'
         + '<td class="td-mono" style="white-space:nowrap;">' + fmtDate(expStr) + '</td>'
         + '<td><span class="' + sisaCls + '">' + sisaTxt + '</span></td>'
-        + '<td style="font-size:12px;color:#64748b;">' + (r.limit || '-') + '</td>'
+        + '<td style="font-size:12px;color:#64748b;">' + (r.limit || '-') + (r.is_rtc ? ' <span style="color:red;font-weight:bold;">(RTC)</span>' : '') + '</td>'
         + '<td><span class="chip-status ' + r._status + '">' + r._status + '</span></td>'
         + '<td><span class="chip-status" style="background:' + (String(r.remarks).toUpperCase() === 'TAKEOUT' ? '#64748b' : '#0ea5e9') + ';color:#fff;font-size:10px;">' + (String(r.remarks).toUpperCase() === 'TAKEOUT' ? 'Di Takeout' : 'Terdisplay') + '</span>'
         + (r.takeout_date ? '<br><span style="font-size:9px;color:#64748b;">' + fmtDate(r.takeout_date) + (r.takeout_by ? ' (' + r.takeout_by + ')' : '') + '</span>' : '')

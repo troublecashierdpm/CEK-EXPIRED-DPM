@@ -8,6 +8,7 @@
   <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
     :root {
       --primary: #4361ee; --primary-soft: #eef2ff; --secondary: #3f37c9;
@@ -25,40 +26,197 @@
       overflow-x: hidden; min-height: 100vh;
     }
     .container { width: 100%; max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
+
+    .header-app { text-align: center; margin-bottom: 20px; padding-top: 10px; }
+    .header-app h2 {
+      font-weight: 800; font-size: 24px; margin: 0;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px;
+    }
+    .header-app p { color: var(--text-muted); font-size: 13px; margin-top: 5px; }
+
     .card {
       background: var(--card-bg); padding: 20px; border-radius: var(--radius);
       box-shadow: var(--shadow); margin-bottom: 16px;
-      border: 1.5px solid #f1f5f9; width: 100%;
+      border: 1.5px solid #f1f5f9; width: 100%; transition: border-color 0.2s;
     }
+    .card.dept-error { border-color: var(--danger); animation: shake 0.35s ease; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(6px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+    .card-title {
+      font-size: 11px; font-weight: 700; color: var(--primary);
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title::after { content: ""; height: 1px; flex: 1; background: #f1f5f9; }
+
+    .dept-hint {
+      display: none; background: #fff0f3; border: 1px solid #fecdd3;
+      border-radius: 10px; padding: 9px 13px; margin-top: -8px; margin-bottom: 10px;
+      font-size: 12px; font-weight: 600; color: var(--danger);
+    }
+    .dept-hint.show { display: block; }
+
+    label {
+      font-weight: 600; font-size: 12px; color: var(--text-muted);
+      margin-bottom: 6px; display: block; margin-left: 4px;
+    }
+    input, select {
+      width: 100%; padding: 12px 14px; margin-bottom: 15px;
+      border-radius: 12px; border: 1.5px solid #f1f5f9;
+      background: #f8fafc; font-size: 14px; color: var(--text-main);
+      font-family: inherit; outline: none;
+    }
+    input:focus, select:focus { border-color: var(--primary); background: #fff; }
+
+    .dept-group { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 10px; }
+    .btn-dept {
+      padding: 12px 2px; border: 1.5px solid #f1f5f9; background: #f8fafc;
+      border-radius: 12px; cursor: pointer; text-align: center;
+      font-size: 10px; font-weight: 700; color: var(--text-muted);
+      font-family: inherit; transition: all 0.15s;
+    }
+    .btn-dept.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 10px rgba(67,97,238,0.25); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
     .main-btn {
-      background: var(--primary); color: white; border: none; padding: 12px;
-      border-radius: 12px; width: 100%; font-weight: 600; cursor: pointer;
+      width: 100%; padding: 14px; border-radius: 14px; border: none;
+      font-weight: 700; font-size: 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; font-family: inherit;
     }
-    #loader { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.9); z-index: 999; display: none; align-items: center; justify-content: center; flex-direction: column; }
-    #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 12px; padding: 16px; position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%); }
-    #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
-    @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
-    @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+    .btn-scan { background: var(--primary-soft); color: var(--primary); margin-bottom: 10px; }
+    .btn-save {
+      background: linear-gradient(135deg, #059669, var(--success)); color: white;
+      margin-top: 5px; font-size: 16px; box-shadow: 0 10px 20px rgba(6,214,160,0.2);
+    }
+    .btn-photo { background: #f1f5f9; color: var(--text-main); border: 1px solid #e2e8f0; margin-bottom: 10px; }
+
+    #scannerWrap {
+      display: none; border-radius: 16px; overflow: hidden;
+      border: 3px solid var(--primary); margin-bottom: 12px;
+      position: relative; background: #000;
+    }
+    #scannerVideo { width: 100%; display: block; }
+    #scannerOverlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .aim-box {
+      width: 220px; height: 130px;
+      border: 3px solid rgba(67,97,238,0.9); border-radius: 12px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+    }
+    .aim-label {
+      position: absolute; bottom: 18px; left: 0; right: 0;
+      text-align: center; color: white; font-size: 11px;
+      font-weight: 700; letter-spacing: 0.5px; text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+
+    #previewContainer { margin-top: 10px; position: relative; border-radius: 12px; overflow: hidden; border: 2px solid #f1f5f9; }
+    #preview { width: 100%; display: block; }
+
+    #loader {
+      display: none; position: fixed; inset: 0;
+      background: rgba(255,255,255,0.9); z-index: 9999;
+      flex-direction: column; justify-content: center; align-items: center;
+    }
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid var(--primary-soft);
+      border-top: 4px solid var(--primary); border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #toast {
+      position: fixed; bottom: 30px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #1e293b; color: white; padding: 11px 22px;
+      border-radius: 50px; font-size: 13px; font-weight: 600;
+      z-index: 99999; opacity: 0; pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      white-space: nowrap; max-width: 90vw; text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.t-success { background: linear-gradient(135deg,#059669,#06d6a0); }
+    #toast.t-warning { background: linear-gradient(135deg,#d97706,#f59e0b); }
+    #toast.t-error   { background: linear-gradient(135deg,#dc2626,#ef476f); }
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.9); backdrop-filter: blur(5px);
+      z-index: 10000; justify-content: center; align-items: center; padding: 20px;
+    }
+    .modal-content { position: relative; max-width: 95%; max-height: 80vh; }
+    .modal-content img { width: 100%; max-height: 75vh; border-radius: 12px; border: 3px solid white; object-fit: contain; }
+    .btn-close-preview {
+      position: absolute; top: -45px; right: 0; background: white; color: var(--danger);
+      border: none; width: 35px; height: 35px; border-radius: 50%; font-weight: bold; cursor: pointer;
+    }
   </style>
 </head>
+
 <body>
+<div id="loader">
+  <div class="spinner"></div>
+  <p style="margin-top:15px;font-weight:700;color:var(--primary)" id="loaderText">Memproses...</p>
+</div>
+<div id="toast"></div>
+
 <div class="container">
-  <div class="header-app"><h2>Inventory Check DPM</h2><p>Auto-fill & Expiration Tracking</p></div>
+
+  <div class="header-app">
+    <h2>Inventory Check</h2>
+    <p>Monitoring Tanggal Kadaluarsa Barang</p>
+    <a href="dashboard.html" style="
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 10px; padding: 8px 18px;
+      background: var(--primary-soft); color: var(--primary);
+      border-radius: 50px; font-size: 12px; font-weight: 700;
+      text-decoration: none; border: 1.5px solid #c7d2fe;">
+      📊 Lihat Dashboard
+    </a>
+  </div>
+
   <div class="card">
-    <label>Barcode / SKU *</label>
+    <div class="card-title">🔍 Scan & Identifikasi</div>
+    
+    <label>Barcode / SKU <span style="color:var(--danger)">*</span></label>
     <div style="display:flex;gap:8px;margin-bottom:10px;">
       <input type="text" id="barcode" placeholder="Scan/Ketik..." style="margin-bottom:0;" onkeypress="if(event.key==='Enter'){event.preventDefault();validateBarcodeInput();}">
-      <button type="button" class="main-btn" style="width:auto;padding:0 12px;flex-shrink:0;background:var(--success);color:#fff;" onclick="validateBarcodeInput()">✔️</button>
+      <button type="button" class="main-btn btn-scan" style="width:60px;padding:0;flex-shrink:0;" onclick="startScanning()" title="Scan Live">📷</button>
+      <button type="button" class="main-btn" style="width:auto;padding:0 12px;flex-shrink:0;background:var(--success);color:#fff;font-size:12px;" onclick="validateBarcodeInput()" title="Validasi Barcode/SKU">✔️</button>
     </div>
     <div id="masterStatus" style="font-size:11px;padding:4px 8px;border-radius:4px;margin-bottom:10px;background:#fef3c7;color:#92400e;">⏳ Memuat data master...</div>
-  </div>
-  
-  <div class="card" id="cardDept">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <label>Departemen *</label>
-        <button id="btnRTC" type="button" style="padding:4px 8px;border-radius:6px;border:1px solid #ccc;background:#f8fafc;cursor:pointer;" onclick="toggleRTC()">RTC: OFF</button>
+
+    <button id="btnStop" type="button" class="main-btn" style="display:none;background:var(--danger);color:white;margin-bottom:10px;" onclick="stopScanning()">❌ Hentikan Scanner</button>
+    <div id="scannerWrap">
+      <video id="scannerVideo" autoplay muted playsinline webkit-playsinline></video>
+      <div id="scannerOverlay">
+        <div class="aim-box"></div>
+        <div class="aim-label">Arahkan barcode ke dalam kotak</div>
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;">
+
+    <input type="file" id="galleryInput" accept="image/*" style="display:none">
+    <input type="file" id="iosCameraInput" accept="image/*" capture="environment" style="display:none">
+    <button id="btnIOSCamera" type="button" class="main-btn" style="display:none;background:#4361ee;color:white;margin-bottom:10px;" onclick="document.getElementById('iosCameraInput').click()">📸 Scan dengan Kamera (iOS)</button>
+
+    <label>Deskripsi Nama Barang</label>
+    <input type="text" id="deskripsi" placeholder="Hasil scan/input...">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <label>Pilih Departement <span style="color:var(--danger)">*</span></label>
+        <button id="btnRTC" type="button" style="padding:6px 10px;border-radius:8px;border:1.5px solid #f1f5f9;background:#f8fafc;cursor:pointer;font-size:12px;" onclick="toggleRTC()">RTC: OFF</button>
+    </div>
+    <div class="dept-group" id="cardDept">
       <div class="btn-dept" onclick="selectDept('GROCERY', this)">GROCERY</div>
       <div class="btn-dept" onclick="selectDept('DND', this)">DND</div>
       <div class="btn-dept" onclick="selectDept('GMS', this)">GMS</div>
@@ -68,51 +226,59 @@
       <div class="btn-dept" onclick="selectDept('NONFOOD', this)">NONFOOD</div>
       <div class="btn-dept" onclick="selectDept('RTC', this)">RTC</div>
     </div>
-  </div>
-  
-  <div class="card">
-    <label>Kategori Produk *</label>
+    <div class="dept-hint" id="deptHint">⚠️ Pilih salah satu departement terlebih dahulu!</div>
+    
+    <label>Kategori Produk <span style="color:var(--danger)">*</span></label>
     <input type="text" id="kategori" list="katList" placeholder="Pilih Dept/Ketik Kategori">
     <datalist id="katList"></datalist>
+
+    <div class="grid-2" style="margin-top:10px;">
+      <div><label>Gondola</label><input type="text" id="gondola" placeholder="A-01"></div>
+      <div><label>Selving</label><input type="text" id="selving" placeholder="01"></div>
+    </div>
   </div>
-  
+
   <div class="card">
-    <label>Keterangan Barang</label>
-    <input type="text" id="deskripsi" placeholder="Deskripsi barang...">
+    <div class="card-title">🗓️ Detail Kadaluarsa</div>
+    <div class="grid-2">
+      <div><label>Jumlah (QTY)</label><input type="number" id="qty" value="1" min="1"></div>
+      <div><label>Tgl Kadaluarsa <span style="color:var(--danger)">*</span></label><input type="date" id="expiredDate"></div>
+    </div>
+
+    <input type="file" id="fotoInput" accept="image/*" style="display:none" onchange="previewImage()">
+    <div id="previewContainer" style="display:none;">
+      <img id="preview">
+      <button onclick="removeImage()"
+        style="position:absolute;top:8px;right:8px;background:var(--danger);
+        color:white;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;">✕</button>
+    </div>
   </div>
-  
-  <div class="card">
-    <label>Expired Date *</label>
-    <input type="date" id="expiredDate">
+
+  <button type="button" class="main-btn btn-save" onclick="saveData()">💾 SIMPAN KE DATABASE</button>
+
+  <div id="imageModal" class="modal-overlay" onclick="closePreview()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <button type="button" class="btn-close-preview" onclick="closePreview()">✕</button>
+      <img id="modalImg" src="">
+    </div>
   </div>
-  
-  <button class="main-btn" onclick="saveData()">Submit Inventory</button>
+
+  <p style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:20px;padding-bottom:20px;">
+    AEON STORE &bull; DP MALL SEMARANG
+  </p>
 </div>
 
-<div id="toast"></div>
-<div id="loader"><div class="spinner-ring"></div><div id="loaderText">Memproses...</div></div>
-
 <script>
-  var SUPA_URL = 'https://tplmwztdiccknphhxbqo.supabase.co';
-  var SUPA_KEY = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';
-  var db = null;
-  var masterData = [];
+  var SUPA_URL    = 'https://tplmwztdiccknphhxbqo.supabase.co';
+  var SUPA_KEY    = 'sb_publishable_xnXPcfLL25YBFzv21jVWYg_d4_ZD4lf';
+  var BUCKET_NAME = 'inventory-photos'; // Nama bucket Supabase Storage (harus Public)
+
+  var db           = null;
+  var masterItem   = [];     // Cache data dari tabel data_master
   var masterItemReady = false;
   var currentItemLimit = 0;
   var currentItemLimitRTC = 0;
   var isRTCActive = false;
-  var selectedDept = "";
-  var CACHE_KEY = 'dataMasterCache';
-  var CACHE_TS_KEY = 'dataMasterCacheTs';
-  var CACHE_DURATION = 24 * 60 * 60 * 1000;
-
-  function toggleRTC() {
-    isRTCActive = !isRTCActive;
-    var btn = document.getElementById('btnRTC');
-    btn.style.background = isRTCActive ? '#ef476f' : '#f8fafc';
-    btn.style.color = isRTCActive ? '#fff' : '#000';
-    btn.textContent = 'RTC: ' + (isRTCActive ? 'ON' : 'OFF');
-  }
 
   function updateMasterStatus(ready, count) {
     var statusEl = document.getElementById('masterStatus');
@@ -121,107 +287,623 @@
       statusEl.style.background = '#d1fae5';
       statusEl.style.color = '#065f46';
       statusEl.innerHTML = '✅ Data master siap (' + count + ' items)';
+    } else {
+      statusEl.style.background = '#fef3c7';
+      statusEl.style.color = '#92400e';
+      statusEl.innerHTML = '⏳ Memuat data master...';
     }
   }
+  var selectedDept = "";
+  var fotoFile     = null;   // File asli foto (untuk upload ke Storage)
+  var previewSrc   = "";     // Data URL hanya untuk preview di browser
+
+  // Cache config
+  var CACHE_KEY = 'dataMasterCache';
+  var CACHE_TS_KEY = 'dataMasterCacheTs';
+  var CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 jam dalam ms
+
+  var scanStream     = null;
+  var scanLoopActive = false;
+  var isIOS          = false;
+  var hasBarcodeAPI  = false;
+
+  var masterData = [
+    { dept: "HBC",       kategori: "SKINCARE",   limit: 90  },
+    { dept: "HBC",       kategori: "BODYCARE",   limit: 90  },
+    { dept: "HBC",       kategori: "COSMETIC",   limit: 90  },
+    { dept: "GROCERY",   kategori: "FOOD",       limit: 60  },
+    { dept: "GROCERY",   kategori: "NONFOOD",    limit: 60  },
+    { dept: "DND",       kategori: "BEVERAGE",   limit: 60  },
+    { dept: "DND",       kategori: "DAIRY",      limit: 30  },
+    { dept: "GMS",       kategori: "KITCHEN",    limit: 120 },
+    { dept: "PRODUCE",   kategori: "FRUIT",      limit: 3   },
+    { dept: "PRODUCE",   kategori: "VEGETABLE",  limit: 3   },
+    { dept: "NONFOOD",   kategori: "TOYS",       limit: 120 },
+    { dept: "NONFOOD",   kategori: "STATIONERY", limit: 120 },
+    { dept: "DELSUSBAK", kategori: "DELICA",     limit: 1   },
+    { dept: "DELSUSBAK", kategori: "SUSHI",      limit: 1   },
+    { dept: "DELSUSBAK", kategori: "BAKERY",     limit: 3   },
+    { dept: "RTC",       kategori: "GROCERY",    limit: 15  }
+  ];
+
+  function showToast(msg, type, dur) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show ' + (type || '');
+    clearTimeout(t._tmr);
+    t._tmr = setTimeout(function() { t.className = ''; }, dur || 3000);
+  }
+  function showLoader(msg) {
+    document.getElementById("loader").style.display = 'flex';
+    document.getElementById("loaderText").innerText = msg || 'Memproses...';
+  }
+  function hideLoader() { document.getElementById("loader").style.display = 'none'; }
 
   window.onload = function() {
-    if (window.supabase && window.supabase.createClient) db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-    if (db) fetchDataMaster();
+    isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    hasBarcodeAPI = ('BarcodeDetector' in window);
+
+    if (window.supabase && window.supabase.createClient) {
+      db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    }
+    if (db) {
+      // Fetch data_master untuk auto-fill (batching)
+      fetchMasterItem();
+      // Fallback: force ready setelah 10 detik jika fetch lambat
+      setTimeout(function() {
+        if (!masterItemReady && masterItem.length > 0) {
+          masterItemReady = true;
+          console.log('⚠ Timeout fallback: masterItemReady forced to true. Items:', masterItem.length);
+          showToast('⚠️ Data master siap (loading timeout)', 't-error', 2000);
+        }
+      }, 10000);
+    }
   };
 
-  function fetchDataMaster() {
+  function fetchMasterItem() {
+    // Cek cache dulu
     var cachedData = localStorage.getItem(CACHE_KEY);
     var cachedTs = localStorage.getItem(CACHE_TS_KEY);
-    if (cachedData && cachedTs && (Date.now() - parseInt(cachedTs) < CACHE_DURATION)) {
-      masterData = JSON.parse(cachedData);
-      masterItemReady = true;
-      updateMasterStatus(true, masterData.length);
-      return;
+    var now = Date.now();
+    
+    if (cachedData && cachedTs) {
+      var age = now - parseInt(cachedTs);
+      if (age < CACHE_DURATION) {
+        try {
+          masterItem = JSON.parse(cachedData);
+          masterItemReady = true;
+          console.log('✓ Loaded from cache:', masterItem.length, 'items');
+          updateMasterStatus(true, masterItem.length);
+          showToast('✅ Data master siap (cache)', 't-success', 2000);
+          return;
+        } catch(e) {
+          console.error('Cache parse error:', e);
+          localStorage.removeItem(CACHE_KEY);
+          localStorage.removeItem(CACHE_TS_KEY);
+        }
+      } else {
+        localStorage.removeItem(CACHE_KEY);
+        localStorage.removeItem(CACHE_TS_KEY);
+      }
     }
     
+    console.log('Fetching data_master dari Supabase...');
+    console.log('DB client:', db ? 'OK' : 'NULL');
     var from = 0, batch = 1000, allData = [];
+    
     function fetchBatch() {
+      console.log('Fetching range:', from, 'to', from + batch - 1);
       db.from('data_master').select('*').range(from, from + batch - 1).then(function(res) {
-        if (res.data) {
-          allData = allData.concat(res.data);
-          if (res.data.length === batch) { from += batch; fetchBatch(); }
-          else {
-            masterData = allData;
+        console.log('Response:', res);
+        if (res.error) {
+          console.error('Fetch error:', res.error);
+          if (allData.length > 0) {
+            masterItem = allData;
             masterItemReady = true;
-            localStorage.setItem(CACHE_KEY, JSON.stringify(masterData));
-            localStorage.setItem(CACHE_TS_KEY, Date.now());
-            updateMasterStatus(true, masterData.length);
+            saveCacheWithRetry();
+            showToast('⚠️ Partial load (' + allData.length + ' items)', 't-error', 2000);
+          }
+          return;
+        }
+        
+        if (res.data && res.data.length > 0) {
+          allData = allData.concat(res.data);
+          console.log('✓ Batch', Math.floor(from/batch)+1, ':', res.data.length, 'items. Total:', allData.length);
+          
+          // Ready setelah batch pertama, lanjut fetch sisanya di background
+          if (!masterItemReady && allData.length > 0) {
+            masterItem = allData;
+            masterItemReady = true;
+            updateMasterStatus(true, masterItem.length);
+            showToast('✅ Data master siap (' + masterItem.length + ' items, loading...)', 't-success', 2000);
+          }
+          
+          if (res.data.length === batch) {
+            from += batch;
+            fetchBatch();
+          } else {
+            masterItem = allData;
+            saveCacheWithRetry();
+            updateMasterStatus(true, masterItem.length);
+            console.log('✓ All fetched:', masterItem.length, 'items');
+          }
+        } else {
+          if (allData.length > 0) {
+            masterItem = allData;
+            masterItemReady = true;
+            saveCacheWithRetry();
+            updateMasterStatus(true, masterItem.length);
+            console.log('✓ Fetch complete:', masterItem.length, 'items');
           }
         }
+      }).catch(function(err) {
+        console.error('Fetch catch error:', err);
       });
     }
+    
     fetchBatch();
   }
+  
+  function saveCacheWithRetry() {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(masterItem));
+      localStorage.setItem(CACHE_TS_KEY, String(Date.now()));
+      console.log('✓ Cache saved');
+    } catch(e) {
+      console.warn('Cache save failed (quota?):', e.message);
+    }
+  }
 
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('galleryInput').addEventListener('change', function(e) {
+      if (!e.target.files || !e.target.files.length) return;
+      decodeFromImageFile(e.target.files[0]);
+      this.value = '';
+    });
+
+    document.getElementById('iosCameraInput').addEventListener('change', function(e) {
+      if (!e.target.files || !e.target.files.length) return;
+      decodeFromImageFile(e.target.files[0]);
+      this.value = '';
+    });
+
+    if (isIOS) {
+      document.getElementById('btnIOSCamera').style.display = 'block';
+    }
+  });
+
+  /* ── VALIDASI BARCODE/SKU DARI MASTER ── */
   function validateBarcodeInput() {
     var val = document.getElementById('barcode').value;
-    if (!masterItemReady) { showToast('⏳ Loading data master...', 't-error'); return; }
+    if (!val) { showToast('⚠️ Barcode/SKU masih kosong!', 't-error'); return; }
+    if (!masterItemReady) {
+      showToast('⏳ Tunggu sebentar, data master masih loading...', 't-error', 3000);
+      return;
+    }
     lookupBarcodeOrSku(val, true);
   }
 
   function lookupBarcodeOrSku(val, isValidate) {
+    if (!val) return;
+    console.log('Looking up:', val, 'masterItem count:', masterItem.length);
+    
     var cleanVal = String(val).trim();
-    var item = masterData.find(function(m) {
+    
+    var item = masterItem.find(function(m) {
       var b = String(m.barcode || '');
       var s = String(m.sku || '');
-      return b === cleanVal || s === cleanVal;
+      
+      // Hilangkan leading zero untuk perbandingan SKU 7/8 digit
+      var sClean = s.replace(/^0+/, '');
+      var inputClean = cleanVal.replace(/^0+/, '');
+      
+      // Match barcode exact atau SKU (dengan/tanpa leading zero)
+      var match = b === cleanVal || s === cleanVal || sClean === inputClean || s === inputClean;
+      if (match) console.log('✓ Match found:', m);
+      return match;
     });
 
     if (item) {
+      console.log('Found item:', item);
+      console.log('item.kategori:', item.kategori);
+      console.log('item.description:', item.description);
+      console.log('item.dept:', item.dept);
+      console.log('item.limit:', item.limit);
+      console.log('item.limit_rtc:', item.limit_rtc);
+      
       currentItemLimit = item.limit || 0;
       currentItemLimitRTC = item.limit_rtc || 0;
+      
       document.getElementById('deskripsi').value = item.description || '';
-      document.getElementById('kategori').value = item.kategori || '';
-      selectDept(item.dept);
-      showToast('✅ Barang ditemukan: ' + item.description, 't-success');
-    } else if (isValidate) {
-      showToast('❌ Tidak ditemukan.', 't-error');
+      
+      // Set dept dulu, baru kategori (karena selectDept clear kategori field)
+      if (item.dept) {
+        var deptBtns = document.querySelectorAll('.btn-dept');
+        deptBtns.forEach(function(b) {
+          if (b.textContent.trim().toUpperCase() === String(item.dept).trim().toUpperCase()) {
+            selectDept(b.textContent.trim(), b);
+          }
+        });
+      }
+      
+      // Set kategori setelah selectDept
+      var katInput = document.getElementById('kategori');
+      console.log('katInput element:', katInput);
+      console.log('item.kategori exists?', !!item.kategori);
+      if (katInput && item.kategori) {
+        katInput.value = item.kategori || '';
+        console.log('Set kategori to:', item.kategori);
+        console.log('Current katInput.value:', katInput.value);
+      } else {
+        console.log('katInput:', katInput, 'item.kategori:', item.kategori);
+      }
+      showToast('✅ Barang ditemukan: ' + (item.description || ''), 't-success');
+    } else {
+      console.log('Not found. Input:', cleanVal, 'Total items:', masterItem.length);
+      if (isValidate) showToast('❌ Barcode/SKU tidak ditemukan di master data.', 't-error', 4000);
     }
   }
 
-  function selectDept(dept) {
-    selectedDept = dept;
-    document.querySelectorAll('.btn-dept').forEach(function(b) {
-      b.classList.toggle('active', b.textContent === dept);
+  /* ═══════════════════════════════════════
+     UPLOAD FOTO KE SUPABASE STORAGE
+     Foto dikompresi dulu di browser (maks 800px, JPEG 70%),
+     lalu di-upload sebagai file. Yang disimpan ke database
+     hanya URL publik (~80 karakter) — bukan base64.
+  ═══════════════════════════════════════ */
+  function compressAndUpload(file, filename) {
+    return new Promise(function(resolve) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+          var MAX = 800;
+          var w = img.width, h = img.height;
+          if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+          if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+
+          canvas.toBlob(function(blob) {
+            if (!blob) { resolve(null); return; }
+
+            db.storage.from(BUCKET_NAME)
+              .upload(filename, blob, { contentType: 'image/jpeg', upsert: true })
+              .then(function(res) {
+                if (res.error) {
+                  console.error('Upload storage gagal:', res.error);
+                  resolve(null); return;
+                }
+                var pubRes = db.storage.from(BUCKET_NAME).getPublicUrl(filename);
+                resolve(pubRes.data ? pubRes.data.publicUrl : null);
+              })
+              .catch(function(err) {
+                console.error('Upload storage error:', err);
+                resolve(null);
+              });
+
+          }, 'image/jpeg', 0.70);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
     });
   }
 
+  /* ═══════════════════════════════════════
+     SCANNER
+  ═══════════════════════════════════════ */
+  function startScanning() {
+    var wrap  = document.getElementById('scannerWrap');
+    var video = document.getElementById('scannerVideo');
+    wrap.style.display = 'block';
+    document.getElementById('btnStop').style.display = 'flex';
+    scanLoopActive = true;
+
+    var constraints = isIOS
+      ? { video: { facingMode: { ideal: 'environment' } }, audio: false }
+      : { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+
+    navigator.mediaDevices.getUserMedia(constraints)
+      .catch(function() {
+        return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      })
+      .then(function(stream) {
+        if (!stream) throw new Error('No stream');
+        scanStream = stream;
+        video.srcObject = stream;
+        video.setAttribute('playsinline', true);
+        video.muted = true;
+        video.play().catch(function(e) { console.warn("Auto-play error:", e); });
+        if (video.readyState >= 2) {
+          hasBarcodeAPI ? startBarcodeDetectorLoop(video) : startZxingLoop(video);
+        } else {
+          video.addEventListener('loadedmetadata', function() {
+            hasBarcodeAPI ? startBarcodeDetectorLoop(video) : startZxingLoop(video);
+          }, { once: true });
+        }
+      })
+      .catch(function() {
+        stopScanning();
+        showToast('❌ Kamera tidak bisa dibuka. Pastikan izin kamera aktif.', 't-error', 4000);
+      });
+  }
+
+  function startBarcodeDetectorLoop(video) {
+    var formats = ['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar','qr_code','data_matrix'];
+    var detector = new BarcodeDetector({ formats: formats });
+    function tick() {
+      if (!scanLoopActive) return;
+      if (video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) { requestAnimationFrame(tick); return; }
+      detector.detect(video)
+        .then(function(codes) {
+          if (codes && codes.length > 0) onBarcodeFound(codes[0].rawValue);
+          else requestAnimationFrame(tick);
+        })
+        .catch(function() { startZxingLoop(video); });
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function startZxingLoop(video) {
+    if (!window.ZXing) { setTimeout(function() { startZxingLoop(video); }, 300); return; }
+    var hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
+      ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.CODABAR, ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    var reader = new ZXing.MultiFormatReader();
+    reader.setHints(hints);
+    var canvas = document.createElement('canvas');
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    var skipFrm = 0;
+    function tick() {
+      if (!scanLoopActive) return;
+      if (video.readyState < video.HAVE_ENOUGH_DATA || !video.videoWidth) { requestAnimationFrame(tick); return; }
+      if (++skipFrm < 3) { requestAnimationFrame(tick); return; }
+      skipFrm = 0;
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      try {
+        var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        var lum = new ZXing.RGBLuminanceSource(imgData.data, canvas.width, canvas.height);
+        var result = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum)));
+        if (result) { onBarcodeFound(result.getText()); return; }
+      } catch(e) {}
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function onBarcodeFound(text) {
+    if (!text || !scanLoopActive) return;
+    document.getElementById('barcode').value = text;
+    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+    showToast('✅ Barcode: ' + text, 't-success');
+    stopScanning();
+    lookupBarcodeOrSku(text);
+  }
+
+  function stopScanning() {
+    scanLoopActive = false;
+    if (scanStream) { scanStream.getTracks().forEach(function(t) { t.stop(); }); scanStream = null; }
+    var video = document.getElementById('scannerVideo');
+    video.srcObject = null;
+    document.getElementById('scannerWrap').style.display = 'none';
+    document.getElementById('btnStop').style.display = 'none';
+  }
+
+  function pickFromGallery() { document.getElementById('galleryInput').click(); }
+
+  function decodeFromImageFile(file) {
+    showLoader('Membaca Barcode...');
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function() {
+      if (hasBarcodeAPI) {
+        new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_39','code_93','code_128','itf','codabar','qr_code','data_matrix'] })
+          .detect(img)
+          .then(function(codes) {
+            URL.revokeObjectURL(url);
+            if (codes && codes.length > 0) { hideLoader(); onBarcodeFound(codes[0].rawValue); }
+            else decodeWithZxing(img, url);
+          }).catch(function() { decodeWithZxing(img, url); });
+      } else { decodeWithZxing(img, url); }
+    };
+    img.onerror = function() { URL.revokeObjectURL(url); hideLoader(); showToast('❌ Gagal membaca file gambar.', 't-error'); };
+    img.src = url;
+  }
+
+  function decodeWithZxing(img, url) {
+    if (!window.ZXing) { hideLoader(); showToast('❌ Library scan belum siap.', 't-error'); return; }
+    var MAX = 1200;
+    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+    if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+    var canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, w, h);
+    var hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8, ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E, ZXing.BarcodeFormat.CODE_39, ZXing.BarcodeFormat.CODE_93,
+      ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.ITF, ZXing.BarcodeFormat.CODABAR,
+      ZXing.BarcodeFormat.QR_CODE, ZXing.BarcodeFormat.DATA_MATRIX
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    var reader = new ZXing.MultiFormatReader();
+    reader.setHints(hints);
+    try {
+      var imgData = ctx.getImageData(0, 0, w, h);
+      var result = reader.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.RGBLuminanceSource(imgData.data, w, h))));
+      if (url) URL.revokeObjectURL(url);
+      hideLoader(); onBarcodeFound(result.getText());
+    } catch(e) {
+      if (url) URL.revokeObjectURL(url);
+      hideLoader(); showToast('❌ Barcode tidak terbaca. Pastikan gambar jelas.', 't-error', 4000);
+    }
+  }
+
+  /* ═══════════════════════════════════════
+     SIMPAN DATA
+  ═══════════════════════════════════════ */
+  function toggleRTC() {
+    isRTCActive = !isRTCActive;
+    var btn = document.getElementById('btnRTC');
+    if (isRTCActive) {
+      btn.textContent = 'RTC: ON';
+      btn.style.background = '#ef476f';
+      btn.style.color = 'white';
+      btn.style.borderColor = '#ef476f';
+    } else {
+      btn.textContent = 'RTC: OFF';
+      btn.style.background = '#f8fafc';
+      btn.style.color = '#1e293b';
+      btn.style.borderColor = '#f1f5f9';
+    }
+  }
+
+  function selectDept(dept, el) {
+    selectedDept = dept;
+    document.querySelectorAll('.btn-dept').forEach(function(b) { b.classList.remove('active'); });
+    if (el) el.classList.add('active');
+    document.getElementById('cardDept').classList.remove('dept-error');
+    document.getElementById('deptHint').classList.remove('show');
+    
+    var katInput = document.getElementById("kategori");
+    var katList = document.getElementById("katList");
+    katInput.value = '';
+    katList.innerHTML = '';
+    masterData.forEach(function(m) {
+      if (m.dept === dept) {
+        var opt = document.createElement('option');
+        opt.value = m.kategori;
+        katList.appendChild(opt);
+      }
+    });
+    katInput.disabled = false;
+  }
+
   function saveData() {
-    var limitHari = isRTCActive ? currentItemLimitRTC : currentItemLimit;
+    var katValue = document.getElementById("kategori").value;
     var expValue = document.getElementById("expiredDate").value;
+
+    if (!selectedDept) {
+      document.getElementById('cardDept').classList.add('dept-error');
+      document.getElementById('deptHint').classList.add('show');
+      document.getElementById('cardDept').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast('⚠️ Pilih Departement dahulu!', 't-error'); return;
+    }
+    if (!katValue) { showToast('⚠️ Pilih Kategori Produk!', 't-error'); return; }
+    if (!expValue) { showToast('⚠️ Isi Tanggal Kadaluarsa!', 't-error'); return; }
+    if (!db)       { showToast('❌ Koneksi database tidak tersedia.', 't-error'); return; }
+
+    var masterObj = masterData.find(function(m) { return m.dept === selectedDept && m.kategori === katValue; });
+    var limitHari = isRTCActive ? (currentItemLimitRTC || (masterObj ? parseInt(masterObj.limit_rtc) || 0 : 0)) : (currentItemLimit || (masterObj ? parseInt(masterObj.limit) || 0 : 0));
     var today = new Date(); today.setHours(0,0,0,0);
     var expDate = new Date(expValue); expDate.setHours(0,0,0,0);
     var diffDays = Math.ceil((expDate - today) / 86400000);
     var remarks = diffDays <= limitHari ? "WARNING" : "AMAN";
 
-    var payload = {
-      dept: selectedDept,
-      jenis_barang: document.getElementById("kategori").value,
-      barcode: document.getElementById("barcode").value,
-      deskripsi_barang: document.getElementById("deskripsi").value,
-      expired_date: expValue,
-      limit: limitHari,
-      is_rtc: isRTCActive,
-      remarks: remarks
-    };
+    var barcodeVal = (document.getElementById("barcode").value || '').trim();
 
-    db.from('data_expired').insert(payload).then(function(res) {
-      if (res.error) showToast('Error: ' + res.error.message, 't-error');
-      else showToast('✅ Data tersimpan!', 't-success');
+    // Upload foto dulu (kalau ada), baru simpan ke database
+    var uploadPromise;
+    if (fotoFile) {
+      showLoader('📤 Mengupload foto...');
+      // Format nama file: dept_barcode_timestamp.jpg (aman untuk path Storage)
+      var safeBarcode = barcodeVal.replace(/[^a-zA-Z0-9]/g, '') || 'noBarcode';
+      var filename = selectedDept + '_' + safeBarcode + '_' + Date.now() + '.jpg';
+      uploadPromise = compressAndUpload(fotoFile, filename);
+    } else {
+      uploadPromise = Promise.resolve(null);
+    }
+
+    uploadPromise.then(function(fotoUrl) {
+      if (fotoFile && !fotoUrl) {
+        showToast('⚠️ Foto gagal diupload, data disimpan tanpa foto', 't-warning', 4000);
+      }
+      showLoader('💾 Menyimpan data...');
+
+      var payload = {
+        dept:             selectedDept,
+        gondola:          document.getElementById("gondola").value,
+        selving:          document.getElementById("selving").value,
+        jenis_barang:     katValue,
+        barcode:          barcodeVal,
+        deskripsi_barang: document.getElementById("deskripsi").value,
+        qty:              parseInt(document.getElementById("qty").value) || 1,
+        input_date:       new Date().toISOString().split('T')[0],
+        expired_date:     expValue,
+        remarks:          remarks,
+        limit:            limitHari,
+        is_rtc:           isRTCActive,
+        link_foto:        fotoUrl || ''   // URL pendek ke Supabase Storage, BUKAN base64
+      };
+
+      return db.from('data_expired').insert([payload]);
+    }).then(function(res) {
+      hideLoader();
+      if (!res) return; // sudah ditangani di .catch
+      if (res.error) { showToast('❌ Gagal simpan: ' + res.error.message, 't-error', 5000); return; }
+      showToast(remarks === "WARNING" ? '⚠️ Disimpan — Status WARNING!' : '✅ Disimpan — Status AMAN',
+                remarks === "WARNING" ? 't-warning' : 't-success', 4000);
+      document.getElementById("barcode").value     = "";
+      document.getElementById("deskripsi").value   = "";
+      document.getElementById("qty").value         = "1";
+      document.getElementById("expiredDate").value = "";
+      removeImage();
+    }).catch(function(err) {
+      hideLoader();
+      console.error('saveData error:', err);
+      showToast('❌ Error: ' + (err && err.message ? err.message : String(err)), 't-error', 5000);
     });
   }
 
-  function showToast(m, t) {
-      var tEl = document.getElementById('toast');
-      tEl.textContent = m;
-      tEl.className = 'show ' + t;
-      setTimeout(function(){ tEl.className = ''; }, 3000);
+  /* ═══════════════════════════════════════
+     FOTO HANDLING
+  ═══════════════════════════════════════ */
+  function openCamera()  { var f = document.getElementById("fotoInput"); f.setAttribute('capture','environment'); f.click(); }
+  function openGallery() { var f = document.getElementById("fotoInput"); f.removeAttribute('capture'); f.click(); }
+
+  function previewImage() {
+    var file = document.getElementById("fotoInput").files[0];
+    if (!file) return;
+    fotoFile = file; // Simpan File object asli untuk upload
+
+    // Tampilkan preview pakai data URL (hanya di browser, tidak masuk database)
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        var w = img.width, h = img.height;
+        if (w > 600) { h = Math.round(h * 600 / w); w = 600; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        previewSrc = canvas.toDataURL('image/jpeg', 0.6);
+        document.getElementById("preview").src = previewSrc;
+        document.getElementById("previewContainer").style.display = 'block';
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
   }
+
+  function removeImage() {
+    fotoFile = null; previewSrc = "";
+    document.getElementById("fotoInput").value = "";
+    document.getElementById("previewContainer").style.display = 'none';
+  }
+
+  function openPreview(src)  { document.getElementById("modalImg").src = src; document.getElementById("imageModal").style.display = "flex"; document.body.style.overflow = "hidden"; }
+  function closePreview()    { document.getElementById("imageModal").style.display = "none"; document.body.style.overflow = "auto"; }
 </script>
 </body>
 </html>

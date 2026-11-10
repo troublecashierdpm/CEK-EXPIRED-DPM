@@ -101,24 +101,9 @@
     #scannerWrap {
       display: none; border-radius: 16px; overflow: hidden;
       border: 3px solid var(--primary); margin-bottom: 12px;
-      position: relative; background: #000;
+      background: #000;
     }
-    #scannerVideo { width: 100%; display: block; }
-    #scannerOverlay {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      pointer-events: none;
-    }
-    .aim-box {
-      width: 220px; height: 130px;
-      border: 3px solid rgba(67,97,238,0.9); border-radius: 12px;
-      box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
-    }
-    .aim-label {
-      position: absolute; bottom: 18px; left: 0; right: 0;
-      text-align: center; color: white; font-size: 11px;
-      font-weight: 700; letter-spacing: 0.5px; text-shadow: 0 1px 4px rgba(0,0,0,0.8);
-    }
+    #scannerVideo { width: 100%; }
 
     #previewContainer { margin-top: 10px; position: relative; border-radius: 12px; overflow: hidden; border: 2px solid #f1f5f9; }
     #preview { width: 100%; display: block; }
@@ -198,11 +183,7 @@
 
     <button id="btnStop" type="button" class="main-btn" style="display:none;background:var(--danger);color:white;margin-bottom:10px;" onclick="stopScanning()">❌ Hentikan Scanner</button>
     <div id="scannerWrap">
-      <video id="scannerVideo" autoplay muted playsinline webkit-playsinline></video>
-      <div id="scannerOverlay">
-        <div class="aim-box"></div>
-        <div class="aim-label">Arahkan barcode ke dalam kotak</div>
-      </div>
+      <div id="scannerVideo"></div>
     </div>
 
     <input type="file" id="galleryInput" accept="image/*" style="display:none">

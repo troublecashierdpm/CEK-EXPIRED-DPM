@@ -214,7 +214,10 @@
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <label>Pilih Departement <span style="color:var(--danger)">*</span></label>
-        <button id="btnRTC" type="button" style="padding:6px 10px;border-radius:8px;border:1.5px solid #f1f5f9;background:#f8fafc;cursor:pointer;font-size:12px;" onclick="toggleRTC()">RTC: OFF</button>
+        <button id="btnRTC" type="button" style="padding:10px 16px;border-radius:10px;border:2px solid #f1f5f9;background:#f8fafc;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;" onclick="toggleRTC()">RTC: OFF</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:15px;padding:8px 12px;background:#f1f5f9;border-radius:8px;">
+      💡 <strong>RTC Mode:</strong> Aktif otomatis saat scan item RTC. Gunakan limit_rtc untuk perhitungan expired.
     </div>
     <div class="dept-group" id="cardDept">
       <div class="btn-dept" onclick="selectDept('GROCERY', this)">GROCERY</div>
@@ -514,6 +517,8 @@
       currentItemLimit = item.limit || 0;
       currentItemLimitRTC = item.limit_rtc || 0;
       
+      autoEnableRTC();
+      
       document.getElementById('deskripsi').value = item.description || '';
       
       // Set dept dulu, baru kategori (karena selectDept clear kategori field)
@@ -757,15 +762,36 @@
     isRTCActive = !isRTCActive;
     var btn = document.getElementById('btnRTC');
     if (isRTCActive) {
-      btn.textContent = 'RTC: ON';
+      btn.textContent = '🏷️ RTC: ON';
       btn.style.background = '#ef476f';
       btn.style.color = 'white';
       btn.style.borderColor = '#ef476f';
+      btn.style.padding = '12px 18px';
+      btn.style.fontSize = '15px';
+      btn.style.boxShadow = '0 4px 12px rgba(239, 71, 111, 0.3)';
     } else {
       btn.textContent = 'RTC: OFF';
       btn.style.background = '#f8fafc';
       btn.style.color = '#1e293b';
       btn.style.borderColor = '#f1f5f9';
+      btn.style.padding = '10px 16px';
+      btn.style.fontSize = '14px';
+      btn.style.boxShadow = 'none';
+    }
+  }
+
+  function autoEnableRTC() {
+    if (!isRTCActive && currentItemLimitRTC > 0) {
+      isRTCActive = true;
+      var btn = document.getElementById('btnRTC');
+      btn.textContent = '🏷️ RTC: ON';
+      btn.style.background = '#ef476f';
+      btn.style.color = 'white';
+      btn.style.borderColor = '#ef476f';
+      btn.style.padding = '12px 18px';
+      btn.style.fontSize = '15px';
+      btn.style.boxShadow = '0 4px 12px rgba(239, 71, 111, 0.3)';
+      showToast('🏷️ RTC Mode: AUTO AKTIF (item terdeteksi RTC)', 't-success', 2000);
     }
   }
 

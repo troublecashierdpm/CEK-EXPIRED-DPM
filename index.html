@@ -740,10 +740,13 @@
       const BOT_TOKEN = "9262656891:AAFn35baOTxQ8j3fQznwCYoMimgQqFx5Z2k";
       const CHAT_ID = "892367509";
       const text = `⚠️ *ITEM WARNING TERDETEKSI*\n\n` +
-                   `*Barang:* ${item.deskripsi_barang}\n` +
-                   `*Barcode:* ${item.barcode}\n` +
-                   `*Exp:* ${item.expired_date}\n` +
-                   `*Dept:* ${item.dept}`;
+                   `*Barang:* ${item.deskripsi_barang || '-'}\n` +
+                   `*Barcode:* ${item.barcode || '-'}\n` +
+                   `*Dept:* ${item.dept || '-'}\n` +
+                   `*Gondola / Selving:* G-${item.gondola || '-'} / S-${item.selving || '-'}\n` +
+                   `*Qty:* ${item.qty || 1}\n` +
+                   `*Tgl Input:* ${item.input_date || '-'}\n` +
+                   `*Tgl Expired:* ${item.expired_date || '-'}`;
 
       try {
         await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {

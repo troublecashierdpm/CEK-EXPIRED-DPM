@@ -1185,12 +1185,13 @@
     var expDate = new Date(expValue); expDate.setHours(0,0,0,0);
     var diffDays = Math.ceil((expDate - today) / 86400000);
     var remarksStatus = diffDays <= limitHari ? "WARNING" : "AMAN";
+    var finalRemarks = remarksVal === 'TAKEOUT' ? 'TAKEOUT' : remarksStatus;
 
     var data = {
       dept:             deptVal,
       deskripsi_barang: document.getElementById('editNama').value,
       jenis_barang:     katVal,
-      remarks:          remarksVal === 'TAKEOUT' ? 'TAKEOUT' : remarksStatus,
+      remarks:          finalRemarks,
       takeout_date:     remarksVal === 'TAKEOUT' ? (document.getElementById('editExp').dataset.takeoutDate || new Date().toISOString().split('T')[0]) : null,
       takeout_by:       remarksVal === 'TAKEOUT' ? document.getElementById('editTakeoutBy').value : null,
       qty:              parseInt(document.getElementById('editQty').value),
@@ -1199,6 +1200,22 @@
     db.from('data_expired').update(data).eq('id', id)
       .then(function(res) {
         if (res.error) throw res.error;
+        
+        if (finalRemarks === 'WARNING') {
+          const BOT_TOKEN = "9262656891:AAFn35baOTxQ8j3fQznwCYoMimgQqFx5Z2k";
+          const CHAT_ID = "892367509";
+          const text = `⚠️ *UPDATE: ITEM WARNING TERDETEKSI*\n\n` +
+                       `*Barang:* ${data.deskripsi_barang}\n` +
+                       `*Exp:* ${data.expired_date}\n` +
+                       `*Dept:* ${data.dept}`;
+
+          fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: 'Markdown' })
+          }).catch(function(e){ console.error("Telegram error:", e); });
+        }
+
         showToast('✅ Data berhasil diperbarui!', 'ok');
         closeModal();
         loadAll();

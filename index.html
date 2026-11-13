@@ -734,6 +734,26 @@
       uploadPromise = Promise.resolve(null);
     }
 
+    // Fungsi kirim notif telegram
+    async function sendTelegramNotif(item, remarks) {
+      if (remarks !== 'WARNING') return;
+      const BOT_TOKEN = "9262656891:AAFn35baOTxQ8j3fQznwCYoMimgQqFx5Z2k";
+      const CHAT_ID = "892367509";
+      const text = `⚠️ *ITEM WARNING TERDETEKSI*\n\n` +
+                   `*Barang:* ${item.deskripsi_barang}\n` +
+                   `*Barcode:* ${item.barcode}\n` +
+                   `*Exp:* ${item.expired_date}\n` +
+                   `*Dept:* ${item.dept}`;
+
+      try {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: 'Markdown' })
+        });
+      } catch (e) { console.error("Telegram error:", e); }
+    }
+
     uploadPromise.then(function(fotoUrl) {
       if (fotoFile && !fotoUrl) {
         showToast('⚠️ Foto gagal diupload, data disimpan tanpa foto', 't-warning', 4000);
@@ -763,6 +783,10 @@
       if (res.error) { showToast('❌ Gagal simpan: ' + res.error.message, 't-error', 5000); return; }
       showToast(remarks === "WARNING" ? '⚠️ Disimpan — Status WARNING!' : '✅ Disimpan — Status AMAN',
                 remarks === "WARNING" ? 't-warning' : 't-success', 4000);
+      
+      // Kirim Notif Telegram jika status Warning
+      sendTelegramNotif(payload, remarks);
+
       document.getElementById("barcode").value     = "";
       document.getElementById("deskripsi").value   = "";
       document.getElementById("qty").value         = "1";

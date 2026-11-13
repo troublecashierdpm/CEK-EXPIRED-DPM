@@ -1153,7 +1153,10 @@
              + '<h3 style="margin-bottom:12px;font-size:16px;">✏️ Edit Data</h3>'
              + fotoHtml
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Barcode / SKU</label>'
-             + '<input type="text" id="editBarcode" value="' + (item.barcode || '').replace(/"/g, '&quot;') + '" oninput="onEditBarcodeChange()" style="width:100%;padding:8px;border:2px solid var(--primary);border-radius:6px;box-sizing:border-box;font-weight:bold;background:#fff;"></div>'
+             + '<div style="display:flex;gap:5px;">'
+             + '<input type="text" id="editBarcode" value="' + (item.barcode || '').replace(/"/g, '&quot;') + '" style="flex:1;padding:8px;border:2px solid var(--primary);border-radius:6px;box-sizing:border-box;font-weight:bold;background:#fff;">'
+             + '<button onclick="onEditBarcodeChange()" style="padding:0 12px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;">OK</button>'
+             + '</div></div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Departemen</label>'
              + '<select id="editDept" onchange="onEditDeptChange()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;box-sizing:border-box;">' + deptOptions + '</select></div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Nama Barang</label>'
@@ -1192,7 +1195,14 @@
 
   function onEditBarcodeChange() {
     var val = document.getElementById('editBarcode').value.trim();
-    if (!val || !masterData || masterData.length === 0) return;
+    if (!val) {
+      showToast('⚠️ Barcode masih kosong!', 'err');
+      return;
+    }
+    if (!masterData || masterData.length === 0) {
+      showToast('⏳ Data master masih kosong / loading...', 'err');
+      return;
+    }
 
     var found = masterData.find(function(m) {
       return String(m.barcode || '').trim().toLowerCase() === val.toLowerCase() ||
@@ -1213,6 +1223,9 @@
           document.getElementById('editKat').value = found.kategori;
         }, 50);
       }
+      showToast('✅ Berhasil ditemukan di data master!', 'ok');
+    } else {
+      showToast('❌ Barcode / SKU tidak ditemukan di data master', 'err');
     }
   }
 

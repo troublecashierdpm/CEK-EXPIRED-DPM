@@ -1205,8 +1205,16 @@
     }
 
     var found = masterData.find(function(m) {
-      return String(m.barcode || '').trim().toLowerCase() === val.toLowerCase() ||
-             String(m.sku || '').trim().toLowerCase() === val.toLowerCase();
+      var mBar = String(m.barcode || '').trim();
+      var mSku = String(m.sku || '').trim();
+      var mBarClean = mBar.replace(/^0+/, '');
+      var mSkuClean = mSku.replace(/^0+/, '');
+      var valClean = val.replace(/^0+/, '');
+
+      return mBar.toLowerCase() === val.toLowerCase() ||
+             mSku.toLowerCase() === val.toLowerCase() ||
+             mBarClean === valClean ||
+             mSkuClean === valClean;
     });
 
     if (found) {

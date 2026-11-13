@@ -1152,6 +1152,8 @@
     var html = '<div class="modal-box" onclick="event.stopPropagation()">'
              + '<h3 style="margin-bottom:12px;font-size:16px;">✏️ Edit Data</h3>'
              + fotoHtml
+             + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Barcode / SKU</label>'
+             + '<input type="text" id="editBarcode" value="' + (item.barcode || '').replace(/"/g, '&quot;') + '" oninput="onEditBarcodeChange()" style="width:100%;padding:8px;border:2px solid var(--primary);border-radius:6px;box-sizing:border-box;font-weight:bold;background:#fff;"></div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Departemen</label>'
              + '<select id="editDept" onchange="onEditDeptChange()" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;box-sizing:border-box;">' + deptOptions + '</select></div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Nama Barang</label>'
@@ -1188,11 +1190,38 @@
     katSelect.innerHTML = katOptions;
   }
 
+  function onEditBarcodeChange() {
+    var val = document.getElementById('editBarcode').value.trim();
+    if (!val || !masterData || masterData.length === 0) return;
+
+    var found = masterData.find(function(m) {
+      return String(m.barcode || '').trim().toLowerCase() === val.toLowerCase() ||
+             String(m.sku || '').trim().toLowerCase() === val.toLowerCase();
+    });
+
+    if (found) {
+      if (found.description) {
+        document.getElementById('editNama').value = found.description;
+      }
+      if (found.dept) {
+        var deptSel = document.getElementById('editDept');
+        deptSel.value = found.dept;
+        onEditDeptChange();
+      }
+      if (found.kategori) {
+        setTimeout(function() {
+          document.getElementById('editKat').value = found.kategori;
+        }, 50);
+      }
+    }
+  }
+
   function saveEdit(id) {
     var remarksVal = document.getElementById('editRemarks').value;
     var deptVal = document.getElementById('editDept').value;
     var katVal = document.getElementById('editKat').value;
     var expValue = document.getElementById('editExp').value;
+    var barcodeVal = document.getElementById('editBarcode').value.trim();
 
     var masterObj = masterData.find(function(m) { return m.dept === deptVal && m.kategori === katVal; });
     var limitHari = masterObj ? parseInt(masterObj.limit) || 0 : 0;
@@ -1203,6 +1232,7 @@
     var finalRemarks = remarksVal === 'TAKEOUT' ? 'TAKEOUT' : remarksStatus;
 
     var data = {
+      barcode:          barcodeVal,
       dept:             deptVal,
       deskripsi_barang: document.getElementById('editNama').value,
       jenis_barang:     katVal,

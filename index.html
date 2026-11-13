@@ -776,10 +776,15 @@
         link_foto:        fotoUrl || ''   // URL pendek ke Supabase Storage, BUKAN base64
       };
 
-      return db.from('data_expired').insert([payload]);
-    }).then(function(res) {
+      var lastSavedPayload = payload;
+      return db.from('data_expired').insert([payload]).then(function(res) {
+        return { res: res, payload: lastSavedPayload };
+      });
+    }).then(function(result) {
       hideLoader();
-      if (!res) return; // sudah ditangani di .catch
+      if (!result) return;
+      var res = result.res;
+      var payload = result.payload;
       if (res.error) { showToast('❌ Gagal simpan: ' + res.error.message, 't-error', 5000); return; }
       showToast(remarks === "WARNING" ? '⚠️ Disimpan — Status WARNING!' : '✅ Disimpan — Status AMAN',
                 remarks === "WARNING" ? 't-warning' : 't-success', 4000);

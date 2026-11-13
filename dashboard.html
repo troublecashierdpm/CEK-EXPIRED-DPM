@@ -554,6 +554,19 @@
     return 0;
   }
 
+  function getLimitRTC(dept, jenis) {
+    if (!jenis) return 0;
+    for (var i = 0; i < masterData.length; i++) {
+      var m = masterData[i];
+      if (String(m.dept).trim().toUpperCase() === String(dept).trim().toUpperCase() && 
+         (String(m.kategori).trim().toUpperCase() === String(jenis).trim().toUpperCase() || 
+          String(m.jenis_barang).trim().toUpperCase() === String(jenis).trim().toUpperCase())) {
+        return parseInt(m.limit_rtc) || 0;
+      }
+    }
+    return 0;
+  }
+
   function fmtDate(s) {
     if (!s || s === '-') return '-';
     var d = new Date(s);
@@ -728,11 +741,13 @@
 
       rawData.forEach(function(r) {
         var jenis     = r.jenis_barang || '';
-        var limitHari = getLimit(r.dept, jenis);
+        // Cek apakah RTC untuk menentukan limit
+        var limitHari = r.is_rtc ? getLimitRTC(r.dept, jenis) : getLimit(r.dept, jenis);
+        
         if (r.expired_date) {
           var expD = new Date(r.expired_date); expD.setHours(0,0,0,0);
           var diff = Math.ceil((expD - today) / 86400000);
-          console.log('DEBUG [loadAll]:', { dept: r.dept, jenis: jenis, limit: limitHari, diff: diff, exp: r.expired_date });
+          console.log('DEBUG [loadAll]:', { dept: r.dept, jenis: jenis, is_rtc: r.is_rtc, limit: limitHari, diff: diff, exp: r.expired_date });
           r._status = diff < 0 ? 'EXPIRED' : (limitHari > 0 && diff <= limitHari ? 'WARNING' : 'AMAN');
         } else {
           r._status = r.remarks || 'AMAN';

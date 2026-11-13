@@ -734,26 +734,54 @@
       uploadPromise = Promise.resolve(null);
     }
 
-    // Fungsi kirim notif telegram
+    // Fungsi kirim notif telegram ke semua subscriber
     async function sendTelegramNotif(item, remarks) {
       if (remarks !== 'WARNING') return;
       const BOT_TOKEN = "9262656891:AAFn35baOTxQ8j3fQznwCYoMimgQqFx5Z2k";
-      const CHAT_ID = "892367509";
-      const text = `⚠️ *ITEM WARNING TERDETEKSI*\n\n` +
-                   `*Barang:* ${item.deskripsi_barang || '-'}\n` +
-                   `*Barcode:* ${item.barcode || '-'}\n` +
-                   `*Dept:* ${item.dept || '-'}\n` +
-                   `*Gondola / Selving:* G-${item.gondola || '-'} / S-${item.selving || '-'}\n` +
-                   `*Qty:* ${item.qty || 1}\n` +
-                   `*Tgl Input:* ${item.input_date || '-'}\n` +
-                   `*Tgl Expired:* ${item.expired_date || '-'}`;
-
+      
       try {
-        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: 'Markdown' })
-        });
+        // 1. Sinkronisasi subscriber baru dari Telegram getUpdates
+        const updateRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates`);
+        const updateData = await updateRes.json();
+        
+        if (updateData.ok && updateData.result.length > 0) {
+          const newSubs = updateData.result.map(u => {
+            const msg = u.message || u.edited_message || u.callback_query?.message;
+            if (!msg) return null;
+            return {
+              chat_id: msg.chat.id,
+              username: msg.from.username || '',
+              first_name: msg.from.first_name || ''
+            };
+          }).filter(s => s !== null);
+
+          if (newSubs.length > 0) {
+            // Upsert ke Supabase agar tidak duplikat
+            await db.from('telegram_subscribers').upsert(newSubs, { onConflict: 'chat_id' });
+          }
+        }
+
+        // 2. Ambil semua Chat ID yang terdaftar di Supabase
+        let { data: subs } = await db.from('telegram_subscribers').select('chat_id');
+        let chatIds = (subs && subs.length > 0) ? subs.map(s => s.chat_id) : ["892367509"];
+
+        const text = `⚠️ *ITEM WARNING TERDETEKSI*\n\n` +
+                     `*Barang:* ${item.deskripsi_barang || '-'}\n` +
+                     `*Barcode:* ${item.barcode || '-'}\n` +
+                     `*Dept:* ${item.dept || '-'}\n` +
+                     `*Gondola / Selving:* G-${item.gondola || '-'} / S-${item.selving || '-'}\n` +
+                     `*Qty:* ${item.qty || 1}\n` +
+                     `*Tgl Input:* ${item.input_date || '-'}\n` +
+                     `*Tgl Expired:* ${item.expired_date || '-'}`;
+
+        // 3. Kirim ke semua Chat ID
+        for (const cid of chatIds) {
+          await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: cid, text: text, parse_mode: 'Markdown' })
+          });
+        }
       } catch (e) { console.error("Telegram error:", e); }
     }
 

@@ -1218,17 +1218,38 @@
         
         if (finalRemarks === 'WARNING') {
           const BOT_TOKEN = "9262656891:AAFn35baOTxQ8j3fQznwCYoMimgQqFx5Z2k";
-          const CHAT_ID = "892367509";
-          const text = `⚠️ *UPDATE: ITEM WARNING TERDETEKSI*\n\n` +
-                       `*Barang:* ${data.deskripsi_barang}\n` +
-                       `*Exp:* ${data.expired_date}\n` +
-                       `*Dept:* ${data.dept}`;
+          
+          (async function() {
+            try {
+              // Sinkronisasi subscriber baru
+              const updateRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates`);
+              const updateData = await updateRes.json();
+              if (updateData.ok && updateData.result.length > 0) {
+                const newSubs = updateData.result.map(u => {
+                  const msg = u.message || u.edited_message || u.callback_query?.message;
+                  return msg ? { chat_id: msg.chat.id, username: msg.from.username || '', first_name: msg.from.first_name || '' } : null;
+                }).filter(s => s !== null);
+                if (newSubs.length > 0) await db.from('telegram_subscribers').upsert(newSubs, { onConflict: 'chat_id' });
+              }
 
-          fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: CHAT_ID, text: text, parse_mode: 'Markdown' })
-          }).catch(function(e){ console.error("Telegram error:", e); });
+              // Broadcast ke semua
+              let { data: subs } = await db.from('telegram_subscribers').select('chat_id');
+              let chatIds = (subs && subs.length > 0) ? subs.map(s => s.chat_id) : ["892367509"];
+              
+              const text = `⚠️ *UPDATE: ITEM WARNING TERDETEKSI*\n\n` +
+                           `*Barang:* ${data.deskripsi_barang}\n` +
+                           `*Exp:* ${data.expired_date}\n` +
+                           `*Dept:* ${data.dept}`;
+
+              for (const cid of chatIds) {
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ chat_id: cid, text: text, parse_mode: 'Markdown' })
+                });
+              }
+            } catch(e) { console.error("Telegram error:", e); }
+          })();
         }
 
         showToast('✅ Data berhasil diperbarui!', 'ok');

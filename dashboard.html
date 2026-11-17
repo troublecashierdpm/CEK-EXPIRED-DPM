@@ -1203,50 +1203,67 @@
 
     showToast('⏳ Mencari di data master...', 'warn');
 
-    // Langsung cari di Supabase menggunakan filter or (barcode= atau sku=)
+    // Langsung cari di Supabase — pakai eq (exact match) lebih aman dari ilike
     db.from('data_master')
       .select('*')
-      .or('barcode.ilike.' + val + ',sku.ilike.' + val)
+      .or('barcode.eq.' + val + ',sku.eq.' + val)
       .limit(10)
       .then(function(res) {
         if (res.error) {
-          showToast('❌ Gagal akses data master', 'err');
+          console.error('Lookup error:', res.error);
+          showToast('❌ Gagal akses data master: ' + res.error.message, 'err');
           return;
         }
 
         var items = res.data || [];
-        var found = null;
+        var found = items.length > 0 ? items[0] : null;
 
-        for (var i = 0; i < items.length; i++) {
-          var m = items[i];
-          var mBar = String(m.barcode || '').trim();
-          var mSku = String(m.sku || '').trim();
-          var mBarClean = mBar.replace(/^0+/, '');
-          var mSkuClean = mSku.replace(/^0+/, '');
-          var valClean = val.replace(/^0+/, '');
-
-          if (mBar.toLowerCase() === val.toLowerCase() ||
-              mSku.toLowerCase() === val.toLowerCase() ||
-              mBarClean === valClean ||
-              mSkuClean === valClean) {
-            found = m;
-            break;
-          }
+        // Fallback: coba dengan leading zero ditambah (jika SKU pendek)
+        if (!found) {
+          db.from('data_master')
+            .select('*')
+            .or('barcode.ilike.%' + val + '%,sku.ilike.%' + val + '%')
+            .limit(10)
+            .then(function(res2) {
+              if (res2.error) {
+                console.error('Lookup error 2:', res2.error);
+                showToast('❌ Tidak ditemukan di data master', 'err');
+                return;
+              }
+              var found2 = null;
+              for (var i = 0; i < (res2.data || []).length; i++) {
+                var m = res2.data[i];
+                var mBar = String(m.barcode || '').trim();
+                var mSku = String(m.sku || '').trim();
+                var valClean = val.replace(/^0+/, '');
+                if (mBar.replace(/^0+/, '') === valClean ||
+                    mSku.replace(/^0+/, '') === valClean) {
+                  found2 = m;
+                  break;
+                }
+              }
+              applyEditLookup(found2, val);
+            });
+          return;
         }
 
-        if (found) {
-          document.getElementById('editNama').value = found.description || '';
-          var deptSel = document.getElementById('editDept');
-          deptSel.value = found.dept || '';
-          onEditDeptChange();
-          setTimeout(function() {
-            document.getElementById('editKat').value = found.kategori || '';
-          }, 50);
-          showToast('✅ Berhasil ditemukan!', 'ok');
-        } else {
-          showToast('❌ Tidak ditemukan di data master. Cek SKU/barcode lain.', 'err');
-        }
+        applyEditLookup(found, val);
       });
+  }
+
+  function applyEditLookup(found, val) {
+    if (found) {
+      document.getElementById('editNama').value = found.description || '';
+      var deptSel = document.getElementById('editDept');
+      deptSel.value = found.dept || '';
+      onEditDeptChange();
+      setTimeout(function() {
+        document.getElementById('editKat').value = found.kategori || '';
+      }, 50);
+      showToast('✅ Berhasil ditemukan!', 'ok');
+    } else {
+      showToast('❌ Tidak ditemukan di data master. Cek SKU/barcode lain.', 'err');
+    }
   }
 
   function saveEdit(id) {

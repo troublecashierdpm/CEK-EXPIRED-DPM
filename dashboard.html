@@ -1111,6 +1111,7 @@
     var el = document.getElementById('dashToast');
     el.textContent = msg;
     el.className = 'dash-toast show ' + (type || '');
+    el.style.background = type === 'err' ? '#ef476f' : type === 'ok' ? '#06d6a0' : type === 'warn' ? '#f59e0b' : '#1e293b';
     clearTimeout(el._t);
     el._t = setTimeout(function(){ el.className = 'dash-toast'; }, 3500);
   }
@@ -1196,45 +1197,51 @@
   function onEditBarcodeChange() {
     var val = document.getElementById('editBarcode').value.trim();
     if (!val) {
-      showToast('⚠️ Barcode masih kosong!', 'err');
-      return;
-    }
-    if (!masterData || masterData.length === 0) {
-      showToast('⏳ Data master masih kosong / loading...', 'err');
+      showToast('⚠️ Barcode / SKU masih kosong!', 'err');
       return;
     }
 
-    var found = masterData.find(function(m) {
-      var mBar = String(m.barcode || '').trim();
-      var mSku = String(m.sku || '').trim();
-      var mBarClean = mBar.replace(/^0+/, '');
-      var mSkuClean = mSku.replace(/^0+/, '');
-      var valClean = val.replace(/^0+/, '');
+    showToast('⏳ Mencari di data master...', 'warn');
 
-      return mBar.toLowerCase() === val.toLowerCase() ||
-             mSku.toLowerCase() === val.toLowerCase() ||
-             mBarClean === valClean ||
-             mSkuClean === valClean;
-    });
-
-    if (found) {
-      if (found.description) {
-        document.getElementById('editNama').value = found.description;
+    // Langsung fetch dari Supabase agar data selalu terbaru
+    db.from('data_master').select('*').limit(1).then(function(res) {
+      if (res.error) {
+        showToast('❌ Gagal akses data master', 'err');
+        return;
       }
-      if (found.dept) {
+      // Cari di semua data_master (bisa iterate semua page)
+      var allItems = res.data || [];
+      // Cari barcode / sku di semua data_master
+      var found = null;
+      for (var i = 0; i < allItems.length; i++) {
+        var m = allItems[i];
+        var mBar = String(m.barcode || '').trim();
+        var mSku = String(m.sku || '').trim();
+        var mBarClean = mBar.replace(/^0+/, '');
+        var mSkuClean = mSku.replace(/^0+/, '');
+        var valClean = val.replace(/^0+/, '');
+        if (mBar.toLowerCase() === val.toLowerCase() ||
+            mSku.toLowerCase() === val.toLowerCase() ||
+            mBarClean === valClean ||
+            mSkuClean === valClean) {
+          found = m;
+          break;
+        }
+      }
+
+      if (found) {
+        document.getElementById('editNama').value = found.description || '';
         var deptSel = document.getElementById('editDept');
-        deptSel.value = found.dept;
+        deptSel.value = found.dept || '';
         onEditDeptChange();
-      }
-      if (found.kategori) {
         setTimeout(function() {
-          document.getElementById('editKat').value = found.kategori;
+          document.getElementById('editKat').value = found.kategori || '';
         }, 50);
+        showToast('✅ Berhasil ditemukan!', 'ok');
+      } else {
+        showToast('❌ Tidak ditemukan di data master. Coba SKU lain.', 'err');
       }
-      showToast('✅ Berhasil ditemukan di data master!', 'ok');
-    } else {
-      showToast('❌ Barcode / SKU tidak ditemukan di data master', 'err');
-    }
+    });
   }
 
   function saveEdit(id) {

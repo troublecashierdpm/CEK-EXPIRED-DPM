@@ -1164,6 +1164,13 @@
              + '<input type="text" id="editNama" value="' + (item.deskripsi_barang || '').replace(/"/g, '&quot;') + '" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;box-sizing:border-box;"></div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Kategori</label>'
              + '<select id="editKat" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;box-sizing:border-box;">' + katOptions + '</select></div>'
+             + '<div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">'
+             + '<label style="font-size:11px;font-weight:600;color:var(--muted);">🏷️ Mode RTC</label>'
+             + '<button id="editBtnRTC" type="button" onclick="toggleEditRTC()" style="padding:10px 16px;border-radius:10px;border:2px solid #f1f5f9;background:#f8fafc;cursor:pointer;font-size:14px;font-weight:600;">RTC: OFF</button>'
+             + '</div>'
+             + '<div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;padding:8px 12px;background:#f1f5f9;border-radius:8px;">'
+             + '💡 Gunakan limit_rtc untuk perhitungan expired saat RTC aktif.'
+             + '</div>'
              + '<div style="margin-bottom:10px;"><label style="display:block;font-size:11px;font-weight:600;color:var(--muted)">Remarks (Keterangan)</label>'
              + '<select id="editRemarks" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;box-sizing:border-box;">'
              + '<option value="TERDISPLAY" ' + (String(item.remarks).toUpperCase() === 'TERDISPLAY' || !item.remarks ? 'selected' : '') + '>TERDISPLAY (Masih Terdisplay)</option>'
@@ -1180,6 +1187,33 @@
              + '</div>';
     document.getElementById('modalContent').innerHTML = html;
     document.getElementById('modalBg').classList.add('open');
+    if (item.is_rtc) setTimeout(function() { toggleEditRTC(); }, 100);
+  }
+
+  function toggleEditRTC() {
+    var btn = document.getElementById('editBtnRTC');
+    if (!btn) return;
+    var isOn = btn.dataset.on === '1';
+    if (isOn) {
+      btn.textContent = 'RTC: OFF';
+      btn.style.background = '#f8fafc';
+      btn.style.color = '#1e293b';
+      btn.style.borderColor = '#f1f5f9';
+      btn.style.boxShadow = 'none';
+      btn.dataset.on = '0';
+    } else {
+      btn.textContent = '🏷️ RTC: ON';
+      btn.style.background = '#ef476f';
+      btn.style.color = 'white';
+      btn.style.borderColor = '#ef476f';
+      btn.style.boxShadow = '0 4px 12px rgba(239,71,111,0.3)';
+      btn.dataset.on = '1';
+    }
+  }
+
+  function isEditRTCActive() {
+    var btn = document.getElementById('editBtnRTC');
+    return btn && btn.dataset.on === '1';
   }
 
   function onEditDeptChange() {
@@ -1259,6 +1293,16 @@
       onEditDeptChange();
       setTimeout(function() {
         document.getElementById('editKat').value = found.kategori || '';
+        var rtcBtn = document.getElementById('editBtnRTC');
+        var isRtc = (found.limit_rtc && found.limit_rtc > 0) || found.is_rtc === true;
+        if (rtcBtn) {
+          rtcBtn.dataset.on = isRtc ? '1' : '0';
+          rtcBtn.textContent = isRtc ? '🏷️ RTC: ON' : 'RTC: OFF';
+          rtcBtn.style.background = isRtc ? '#ef476f' : '#f8fafc';
+          rtcBtn.style.color = isRtc ? 'white' : '#1e293b';
+          rtcBtn.style.borderColor = isRtc ? '#ef476f' : '#f1f5f9';
+          rtcBtn.style.boxShadow = isRtc ? '0 4px 12px rgba(239,71,111,0.3)' : 'none';
+        }
       }, 50);
       showToast('✅ Berhasil ditemukan!', 'ok');
     } else {
@@ -1274,7 +1318,13 @@
     var barcodeVal = document.getElementById('editBarcode').value.trim();
 
     var masterObj = masterData.find(function(m) { return m.dept === deptVal && m.kategori === katVal; });
-    var limitHari = masterObj ? parseInt(masterObj.limit) || 0 : 0;
+    var isRtcActive = isEditRTCActive();
+    var limitHari = 0;
+    if (isRtcActive && masterObj && masterObj.limit_rtc) {
+      limitHari = parseInt(masterObj.limit_rtc) || 0;
+    } else if (masterObj) {
+      limitHari = parseInt(masterObj.limit) || 0;
+    }
     var today = new Date(); today.setHours(0,0,0,0);
     var expDate = new Date(expValue); expDate.setHours(0,0,0,0);
     var diffDays = Math.ceil((expDate - today) / 86400000);
@@ -1287,6 +1337,7 @@
       deskripsi_barang: document.getElementById('editNama').value,
       jenis_barang:     katVal,
       remarks:          finalRemarks,
+      is_rtc:           isEditRTCActive(),
       takeout_date:     remarksVal === 'TAKEOUT' ? (document.getElementById('editExp').dataset.takeoutDate || new Date().toISOString().split('T')[0]) : null,
       takeout_by:       remarksVal === 'TAKEOUT' ? document.getElementById('editTakeoutBy').value : null,
       qty:              parseInt(document.getElementById('editQty').value),

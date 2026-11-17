@@ -1287,12 +1287,29 @@
 
   function applyEditLookup(found, val) {
     if (found) {
+      var savedKat = found.kategori || '';
+
       document.getElementById('editNama').value = found.description || '';
       var deptSel = document.getElementById('editDept');
       deptSel.value = found.dept || '';
       onEditDeptChange();
+
       setTimeout(function() {
-        document.getElementById('editKat').value = found.kategori || '';
+        var katSel = document.getElementById('editKat');
+        var exists = false;
+        for (var i = 0; i < katSel.options.length; i++) {
+          if (katSel.options[i].value === savedKat) { exists = true; break; }
+        }
+        // Jika kategori tidak ada di dropdown, tambahkan manual
+        if (!exists && savedKat) {
+          var opt = document.createElement('option');
+          opt.value = savedKat;
+          opt.textContent = savedKat;
+          opt.selected = true;
+          katSel.appendChild(opt);
+        }
+        katSel.value = savedKat;
+
         var rtcBtn = document.getElementById('editBtnRTC');
         var isRtc = (found.limit_rtc && found.limit_rtc > 0) || found.is_rtc === true;
         if (rtcBtn) {
@@ -1303,7 +1320,7 @@
           rtcBtn.style.borderColor = isRtc ? '#ef476f' : '#f1f5f9';
           rtcBtn.style.boxShadow = isRtc ? '0 4px 12px rgba(239,71,111,0.3)' : 'none';
         }
-      }, 50);
+      }, 80);
       showToast('✅ Berhasil ditemukan!', 'ok');
     } else {
       showToast('❌ Tidak ditemukan di data master. Cek SKU/barcode lain.', 'err');
